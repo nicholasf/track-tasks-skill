@@ -1,6 +1,12 @@
 # track-tasks-skill
 
-A skill for managing work as structured task files. Nothing revolutionary — just a consistent format that keeps Claude honest about what it's doing and why, and makes it easy to hand work off to a local model.
+A skill for managing tasks with [local or remote agents](https://github.com/nicholasf/load-topology-skill)).
+
+Tasks are persisted under `/tasks`, can be `pending`, `completed` or `deprecrated`. 
+
+"Programme-tasks" are umbrella tasks, to organise larger structures of work.
+
+
 
 ## Topology and task delegation
 
