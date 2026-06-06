@@ -12,7 +12,7 @@ Tasks are persisted under `/tasks`, can be `pending`, `completed` or `deprecrate
 
 Task delegation relies on [load-topology-skill](https://github.com/nicholasf/load-topology-skill). The topology file describes the machines on your network and which of them are running LLM inference servers (llama-server or Ollama). When assigning a task to a model, the task-tracking skill reads the topology to identify what nodes are available and what models they are running.
 
-A node in the topology with a role of `llm` is a candidate for delegation. Before sending a task, the inference server on that node must be running and reachable. The skill refers to these nodes by hostname — "pond" in the examples below is simply the hostname of a machine in the topology running llama-server on port 9337. Your topology may use different hostnames and different models.
+A node in the topology with a role of `llm` is a candidate for delegation. Before sending a task, the inference server on that node must be running and reachable. The skill refers to these nodes by their hostname from the topology. Any LLM node running llama-server or Ollama is a valid delegation target.
 
 Delegation works over the node's OpenAI-compatible API endpoint (e.g. `http://pond:9337`). The task file is read and embedded in the request payload; the remote model executes the task and fills in the Results section. Claude then reviews the output rather than doing the work itself, which keeps cloud API token use low.
 
