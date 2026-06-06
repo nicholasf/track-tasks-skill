@@ -1,9 +1,15 @@
 ---
 name: task-tracking
 description: Manage work as structured task files in tasks/pending/ and tasks/completed/. Use when planning a non-trivial piece of work, creating a task file, assigning a model to a task, executing a task, or marking a task complete. Triggers on "create a task", "write a task for", "what tasks are pending", "mark this task complete", or "update the task".
+depends_on:
+  - load-topology-skill
 ---
 
 # Task Tracking
+
+## Dependencies
+
+- [load-topology-skill](https://github.com/nicholasf/load-topology-skill)
 
 Tasks are Markdown files that capture a unit of work before it begins. They live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. A corresponding entry is added to `development-log.md`.
 
