@@ -162,7 +162,7 @@ If you catch yourself writing a complete function body, stop. Replace it with a 
 
 ## Estimate time
 
-Invoke when the user says "estimate time", "how long will this take", "what's the difficulty", "rate this task", or "preflight this task".
+Invoke when the user runs `/track-tasks estimate-time <description or file path>`, or says "estimate time", "how long will this take", "what's the difficulty", "rate this task", or "preflight this task".
 
 Before delegating a task, estimate its token cost and difficulty rating so the user knows what to expect. If the inference backend is reachable, run `preflight.py` directly:
 
