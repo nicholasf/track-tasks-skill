@@ -2,6 +2,12 @@
 
 Tasks are Markdown files that capture a unit of work before it begins. They live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. A corresponding entry is added to `development-log.md`.
 
+## Dependencies
+
+- [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — provides `context_window` (from `## Model State`) and `tok/s` (from `## LLM Benchmarks`) used in pre-flight estimation
+- [ask-remote-agent-skill](https://github.com/nicholasf/ask-remote-agent-skill) — provides `reasoning_buffer` (from `## Agent State`) and is the delegation mechanism for agent-runtime targets (Hermes, Goose)
+- [ask-remote-llm-skill](https://github.com/nicholasf/ask-remote-llm-skill) — provides the tokenisation endpoint (`/tokenize` for llama-server, `/api/tokenize` for Ollama) used in pre-flight estimation; also used for direct LLM delegation without an agent runtime
+
 ## When to create a task
 
 Write a task file when the work is substantial enough that:
@@ -57,6 +63,13 @@ Enumerate what will change. Be specific:
 - API / type changes
 - Test changes
 
+## Files to read before starting
+List the file paths the executing model must read to do the work. These are
+tokenised during pre-flight estimation to compute the L1/L2/L3 complexity level.
+Omit files the model can derive or generate without reading.
+- path/to/file.py
+- path/to/schema.sql
+
 ## Open questions
 List anything that must be decided before or during execution.
 If there are none, omit this section.
@@ -68,6 +81,9 @@ How to sequence the work. Note any non-obvious ordering constraints.
 - [ ] Specific, verifiable outcome
 - [ ] Acceptance command that must pass, e.g. `pnpm jest --forceExit`
 - [ ] Entry added to `development-log.md`
+
+## Pre-flight
+<!-- Filled in by preflight.py before delegation — do not edit by hand -->
 
 ## Results
 <!-- Filled in by the executing model after completion -->
@@ -144,6 +160,62 @@ A task file is a **specification**, not an implementation. The executing model w
 
 If you catch yourself writing a complete function body, stop. Replace it with a sentence describing what the function must do and what it must return.
 
+## Pre-flight token estimation
+
+Before delegating a task, run pre-flight to estimate token usage and confirm the task fits the remote context window.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/preflight.py" \
+  tasks/pending/<timestamp>-<slug>.md \
+  --hostname <node> \
+  --backend llama-server \
+  --agent hermes \
+  --write
+```
+
+`--write` appends the `## Pre-flight` section to the task file in place.
+
+### How the estimate is built
+
+```
+estimated_total = spec_tokens + file_tokens + reasoning_buffer
+```
+
+| Term | Source | How |
+|---|---|---|
+| `spec_tokens` | inference backend | tokenise the task file via `/tokenize` (llama-server) or `/api/tokenize` (Ollama) — provided by **ask-remote-llm-skill** |
+| `file_tokens` | inference backend | tokenise each path listed under `## Files to read before starting`; sum the counts |
+| `reasoning_buffer` | topology.md `## Agent State` | written by **ask-remote-agent-skill** `topology` subcommand; preserved across `load-topology discover` runs |
+| `context_window` | topology.md `## Model State` | probed by **load-topology-skill** `discover` from llama-server `/props` or Ollama `/api/show` |
+| `tok/s` | topology.md `## LLM Benchmarks` | measured by **load-topology-skill** `benchmark` subcommand |
+
+### Complexity levels
+
+| Level | Estimated total | Meaning |
+|---|---|---|
+| L1 | < 25K | Fits comfortably in a 65K window |
+| L2 | 25K–40K | Safe but snug — watch for overflow |
+| L3 | > 40K | Must split before sending |
+
+L3 tasks should be broken into a programme task with sub-tasks before delegation.
+
+### Example Pre-flight output
+
+```
+## Pre-flight
+
+- Spec: 713 tokens
+- Files: schema.sql (1,240), 000003.up.sql (180), README.md (320) → 1,740 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~14,453 tokens
+- Complexity: L1 — fits comfortably in a 65K window
+- Context window: 65,536 — fits
+- Time estimate: ~67s at 215 t/s
+```
+
+---
+
 ## Delegating to an LLM node
 
 Use ask-foreign-agent in bridge mode. The remote agent has tools to read the local filesystem directly — pass the task file path in the message rather than embedding its contents.
@@ -155,7 +227,7 @@ Use ask-foreign-agent in bridge mode. The remote agent has tools to read the loc
   "Execute the task at tasks/pending/<timestamp>-<slug>.md in full. Read the file first, implement everything described, and fill in the ## Results section when done."
 ```
 
-Check the topology (load-topology-skill) to confirm the assigned model is running before delegating.
+Check the topology (load-topology-skill) to confirm the assigned model is running before delegating. Run pre-flight first for any task larger than a trivial edit.
 
 ## Executing a task
 
