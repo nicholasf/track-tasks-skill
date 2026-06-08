@@ -41,14 +41,14 @@ The remote agent executes the task autonomously. Results come back as a **git di
 
 ### Estimate time before delegating
 
-Before sending a task to a remote node, ask for a time estimate. The skill tokenises the task and any files it needs to read, then rates it relative to the target node's context window:
+Before sending a task to a remote node, run the `estimate-time` subcommand with a natural language description of the work or a path to an existing task file:
 
 ```
-estimate time for tasks/pending/2026-06-08T10-00-00-add-pagination.md
+/track-tasks estimate-time add input validation to the payments API
 ```
 
 ```
-how long will the auth refactor task take on pond-qwen-hermes
+/track-tasks estimate-time tasks/pending/2026-06-08T10-00-00-auth-refactor.md
 ```
 
 The response shows a difficulty rating and estimated duration:
@@ -57,7 +57,7 @@ The response shows a difficulty rating and estimated duration:
 ⏳⏳ L2 (~120s) — moderate, snug but fits a 65K window
 ```
 
-If the inference backend is not reachable, the skill falls back to a character-count heuristic and marks the estimate as approximate.
+Ratings are relative to the target node's context window (read from `topology.md`). If the inference backend is not reachable, the skill falls back to a character-count heuristic and marks the estimate as approximate.
 
 ### Check pending work
 
