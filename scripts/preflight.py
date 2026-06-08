@@ -30,8 +30,12 @@ import urllib.request
 from pathlib import Path
 
 DEFAULT_REASONING_BUFFER = 12_000
+# Fallback thresholds used when context_window is not available from topology.
 L1_THRESHOLD = 25_000
 L2_THRESHOLD = 40_000
+# Fractions of context_window used when it is available.
+L1_FRACTION = 0.40
+L2_FRACTION = 0.60
 
 
 def get_topology_path() -> str:
@@ -184,17 +188,23 @@ def parse_files_to_read(task_text: str) -> list[str]:
 
 # ── Complexity ────────────────────────────────────────────────────────────────
 
-def complexity_level(estimated_total: int) -> str:
-    if estimated_total < L1_THRESHOLD:
+def complexity_level(estimated_total: int, context_window: int | None = None) -> str:
+    if context_window:
+        l1 = int(context_window * L1_FRACTION)
+        l2 = int(context_window * L2_FRACTION)
+    else:
+        l1 = L1_THRESHOLD
+        l2 = L2_THRESHOLD
+    if estimated_total < l1:
         return 'L1'
-    if estimated_total <= L2_THRESHOLD:
+    if estimated_total <= l2:
         return 'L2'
     return 'L3'
 
 
 def complexity_note(level: str) -> str:
     return {
-        'L1': 'fits comfortably in a 65K window',
+        'L1': 'fits comfortably — well within context window',
         'L2': 'safe but snug — watch for overflow',
         'L3': 'must split before sending',
     }[level]
@@ -215,7 +225,7 @@ def build_preflight_section(
 ) -> str:
     file_total = sum(file_token_counts.values())
     estimated_total = spec_tokens + file_total + reasoning_buffer
-    level = complexity_level(estimated_total)
+    level = complexity_level(estimated_total, context_window)
     note = complexity_note(level)
     rating = difficulty_rating(level)
 

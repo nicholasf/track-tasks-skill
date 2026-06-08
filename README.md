@@ -60,7 +60,7 @@ The local agent reads the `## Results` section filled in by the remote model, ru
 A task file is a specification written before execution. The local agent writes it; a remote agent (or the local agent itself) executes it. When delegated:
 
 1. A task file is written to `tasks/pending/` with a goal, changes, and acceptance criteria.
-2. **Pre-flight** estimates the task's token cost and difficulty before it is sent.
+2. **Estimate time** rates the task's token cost and difficulty before it is sent.
 3. The task is sent to a remote agent handle (e.g. `pond-qwen-hermes`) via [ask-remote-agent](https://github.com/nicholasf/ask-remote-agent-skill).
 4. The remote agent executes the task, fills in `## Results`, and the local agent reviews the **git diff**.
 5. Once confirmed, the task moves to `tasks/completed/` and an entry is added to `development-log.md`.
@@ -69,20 +69,22 @@ A task file is a specification written before execution. The local agent writes 
 
 ---
 
-## Pre-flight difficulty rating
+## Estimate time
 
-Before a task is delegated, `preflight.py` estimates total token usage — the task spec, all files it needs to read, and the model's reasoning overhead — then rates it:
+Ask "estimate time for this task", "how long will this take", or "what's the difficulty" before delegating. `preflight.py` counts tokens across the task spec, all files it needs to read, and the model's reasoning overhead, then rates the task **relative to the context window of the target node**:
 
 | Rating | Level | Estimated tokens | Meaning |
 |---|---|---|---|
-| ⏳ | L1 | < 25K | Quick — fits easily, expect under 2 min |
-| ⏳⏳ | L2 | 25K–40K | Moderate — snug, watch for overflow |
-| ⏳⏳⏳ | L3 | > 40K | Long — split into sub-tasks before sending |
+| ⏳ | L1 | < 40% of context window | Quick — fits easily, safe to delegate |
+| ⏳⏳ | L2 | 40–60% of context window | Moderate — snug, watch for overflow |
+| ⏳⏳⏳ | L3 | > 60% of context window | Long — split into sub-tasks before sending |
+
+The context window is read from `topology.md` for the target node and model, written there by [load-topology-skill](https://github.com/nicholasf/load-topology-skill). This means an L3 threshold differs by agent handle: a node with a 65K context window rates L3 at >39K tokens, while one with a 128K window rates L3 at >78K tokens. If the topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
 
 The rating and estimated duration appear at the top of the `## Pre-flight` section written into the task file:
 
 ```
-## Pre-flight ⏳⏳ L2 (~3m)
+## Pre-flight ⏳⏳ L2 (~120s)
 
 - Spec: 4,210 tokens
 - Files: schema.sql (1,240), api.py (8,430) → 9,670 total

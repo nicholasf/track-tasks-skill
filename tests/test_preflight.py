@@ -5,7 +5,9 @@ import pytest
 
 from preflight import (
     DEFAULT_REASONING_BUFFER,
+    L1_FRACTION,
     L1_THRESHOLD,
+    L2_FRACTION,
     L2_THRESHOLD,
     append_preflight,
     build_preflight_section,
@@ -97,6 +99,33 @@ def test_complexity_l2_at_upper_bound():
 
 def test_complexity_l3_above_threshold():
     assert complexity_level(L2_THRESHOLD + 1) == 'L3'
+
+
+# With context_window — thresholds are relative to context size
+def test_complexity_l1_relative_to_context_window():
+    ctx = 65536
+    just_under_l1 = int(ctx * L1_FRACTION) - 1
+    assert complexity_level(just_under_l1, context_window=ctx) == 'L1'
+
+
+def test_complexity_l2_relative_to_context_window():
+    ctx = 65536
+    at_l1 = int(ctx * L1_FRACTION)
+    assert complexity_level(at_l1, context_window=ctx) == 'L2'
+
+
+def test_complexity_l3_relative_to_context_window():
+    ctx = 65536
+    over_l2 = int(ctx * L2_FRACTION) + 1
+    assert complexity_level(over_l2, context_window=ctx) == 'L3'
+
+
+def test_complexity_large_context_window_raises_l3_ceiling():
+    # With a 128K context window the L3 threshold is much higher than with fallback
+    ctx = 131072
+    # 40K is L1 relative to 128K (40K < 40% of 128K = 52K) but L2 with fallback
+    assert complexity_level(40_000, context_window=ctx) == 'L1'
+    assert complexity_level(40_000) == 'L2'
 
 
 # ── difficulty_rating ─────────────────────────────────────────────────────────

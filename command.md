@@ -4,9 +4,9 @@ Tasks are Markdown files that capture a unit of work before it begins. They live
 
 ## Dependencies
 
-- [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — provides `context_window` (from `## Model State`) and `tok/s` (from `## LLM Benchmarks`) used in pre-flight estimation
+- [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — provides `context_window` (from `## Model State`) and `tok/s` (from `## LLM Benchmarks`) used in time estimation
 - [ask-remote-agent-skill](https://github.com/nicholasf/ask-remote-agent-skill) — provides `reasoning_buffer` (from `## Agent State`) and is the delegation mechanism for agent-runtime targets (Hermes, Goose)
-- [ask-remote-llm-skill](https://github.com/nicholasf/ask-remote-llm-skill) — provides the tokenisation endpoint (`/tokenize` for llama-server, `/api/tokenize` for Ollama) used in pre-flight estimation; also used for direct LLM delegation without an agent runtime
+- [ask-remote-llm-skill](https://github.com/nicholasf/ask-remote-llm-skill) — provides the tokenisation endpoint (`/tokenize` for llama-server, `/api/tokenize` for Ollama) used in time estimation; also used for direct LLM delegation without an agent runtime
 
 ## When to create a task
 
@@ -160,9 +160,11 @@ A task file is a **specification**, not an implementation. The executing model w
 
 If you catch yourself writing a complete function body, stop. Replace it with a sentence describing what the function must do and what it must return.
 
-## Pre-flight token estimation
+## Estimate time
 
-Before delegating a task, run pre-flight to estimate token usage and confirm the task fits the remote context window.
+Invoke when the user says "estimate time", "how long will this take", "what's the difficulty", "rate this task", or "preflight this task".
+
+Before delegating a task, estimate its token cost and difficulty rating so the user knows what to expect. If the inference backend is reachable, run `preflight.py` directly:
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
@@ -174,7 +176,13 @@ Before delegating a task, run pre-flight to estimate token usage and confirm the
   --write
 ```
 
-`--write` appends the `## Pre-flight` section to the task file in place.
+`--write` appends the result to the task file in place. Report the rating line to the user:
+
+```
+⏳ L1 (~67s) — fits comfortably, safe to delegate
+```
+
+If the inference backend is not reachable, estimate token counts using ~4 characters per token as a heuristic, read the task file and any listed files yourself, and report an approximate rating with a note that it is estimated.
 
 ### How the estimate is built
 
@@ -190,20 +198,22 @@ estimated_total = spec_tokens + file_tokens + reasoning_buffer
 | `context_window` | topology.md `## Model State` | probed by **load-topology-skill** `discover` from llama-server `/props` or Ollama `/api/show` |
 | `tok/s` | topology.md `## LLM Benchmarks` | measured by **load-topology-skill** `benchmark` subcommand |
 
-### Complexity levels
+### Difficulty rating
 
-| Level | Estimated total | Meaning |
-|---|---|---|
-| L1 | < 25K | Fits comfortably in a 65K window |
-| L2 | 25K–40K | Safe but snug — watch for overflow |
-| L3 | > 40K | Must split before sending |
+Thresholds are relative to the `context_window` of the target node, read from `topology.md`. If topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
+
+| Rating | Level | Estimated tokens | Meaning |
+|---|---|---|---|
+| ⏳ | L1 | < 40% of context window | Quick — fits easily, safe to delegate |
+| ⏳⏳ | L2 | 40–60% of context window | Moderate — snug, watch for overflow |
+| ⏳⏳⏳ | L3 | > 60% of context window | Long — split into sub-tasks before sending |
 
 L3 tasks should be broken into a programme task with sub-tasks before delegation.
 
-### Example Pre-flight output
+### Example output
 
 ```
-## Pre-flight
+## Pre-flight ⏳ L1 (~67s)
 
 - Spec: 713 tokens
 - Files: schema.sql (1,240), 000003.up.sql (180), README.md (320) → 1,740 total
