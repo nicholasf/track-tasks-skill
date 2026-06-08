@@ -71,13 +71,15 @@ A task file is a specification written before execution. The local agent writes 
 
 ## Estimate time
 
-Ask "estimate time for this task", "how long will this take", or "what's the difficulty" before delegating. `preflight.py` counts tokens across the task spec, all files it needs to read, and the model's reasoning overhead, then rates the task:
+Ask "estimate time for this task", "how long will this take", or "what's the difficulty" before delegating. `preflight.py` counts tokens across the task spec, all files it needs to read, and the model's reasoning overhead, then rates the task **relative to the context window of the target node**:
 
 | Rating | Level | Estimated tokens | Meaning |
 |---|---|---|---|
-| ⏳ | L1 | < 25K | Quick — fits easily, safe to delegate |
-| ⏳⏳ | L2 | 25K–40K | Moderate — snug, watch for overflow |
-| ⏳⏳⏳ | L3 | > 40K | Long — split into sub-tasks before sending |
+| ⏳ | L1 | < 40% of context window | Quick — fits easily, safe to delegate |
+| ⏳⏳ | L2 | 40–60% of context window | Moderate — snug, watch for overflow |
+| ⏳⏳⏳ | L3 | > 60% of context window | Long — split into sub-tasks before sending |
+
+The context window is read from `topology.md` for the target node and model, written there by [load-topology-skill](https://github.com/nicholasf/load-topology-skill). This means an L3 threshold differs by agent handle: a node with a 65K context window rates L3 at >39K tokens, while one with a 128K window rates L3 at >78K tokens. If the topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
 
 The rating and estimated duration appear at the top of the `## Pre-flight` section written into the task file:
 

@@ -200,11 +200,13 @@ estimated_total = spec_tokens + file_tokens + reasoning_buffer
 
 ### Difficulty rating
 
+Thresholds are relative to the `context_window` of the target node, read from `topology.md`. If topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
+
 | Rating | Level | Estimated tokens | Meaning |
 |---|---|---|---|
-| ⏳ | L1 | < 25K | Quick — fits easily, safe to delegate |
-| ⏳⏳ | L2 | 25K–40K | Moderate — snug, watch for overflow |
-| ⏳⏳⏳ | L3 | > 40K | Long — split into sub-tasks before sending |
+| ⏳ | L1 | < 40% of context window | Quick — fits easily, safe to delegate |
+| ⏳⏳ | L2 | 40–60% of context window | Moderate — snug, watch for overflow |
+| ⏳⏳⏳ | L3 | > 60% of context window | Long — split into sub-tasks before sending |
 
 L3 tasks should be broken into a programme task with sub-tasks before delegation.
 
