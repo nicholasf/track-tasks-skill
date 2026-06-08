@@ -2,7 +2,13 @@
 
 Manage units of work as structured Markdown files. Tasks live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. Programme tasks group related sub-tasks for larger workloads.
 
-Depends on [load-topology-skill](https://github.com/nicholasf/load-topology-skill) to identify available nodes and models for delegation.
+This skill is part of a small ecosystem:
+
+- [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — discovers the machines on your network, names them, and tracks which LLMs are running on each. A machine running a qwen model is referred to as `pond-qwen`; add the agent platform to get an **agent handle** like `pond-qwen-hermes`.
+- [ask-remote-llm](https://github.com/nicholasf/ask-remote-llm-skill) — sends a question or task to an LLM on one of those machines and returns the response.
+- [ask-remote-agent](https://github.com/nicholasf/ask-remote-agent-skill) — delegates a task to an autonomous agent on a remote machine using its agent handle. The agent executes independently and returns a git diff.
+
+**track-tasks-skill** ties these together: write a task, delegate it to an agent handle, review the diff, mark it done.
 
 ---
 
