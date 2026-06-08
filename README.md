@@ -29,11 +29,11 @@ mark this task complete
 
 ### Delegate a task to a remote node
 
+Agent handles identify a remote agent as `<machine>-<llm>-<agent>` — e.g. `pond-qwen-hermes` means the machine `pond`, running `qwen`, via the `hermes` agent. Load the topology first to see what handles are available on your network.
+
 ```
 write a task to add input validation to the API and send it to pond-qwen-hermes
 ```
-
-`pond-qwen-hermes` is an agent handle — `<machine>-<llm>-<agent>` — identifying the machine, the model running on it, and the agent platform. Load the topology first to see what handles are available on your network.
 
 The remote agent executes the task autonomously. Results come back as a **git diff** — the local agent reviews the diff and confirms before marking the task complete.
 
