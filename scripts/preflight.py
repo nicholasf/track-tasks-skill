@@ -200,6 +200,10 @@ def complexity_note(level: str) -> str:
     }[level]
 
 
+def difficulty_rating(level: str) -> str:
+    return {'L1': '⏳', 'L2': '⏳⏳', 'L3': '⏳⏳⏳'}[level]
+
+
 # ── Pre-flight block ──────────────────────────────────────────────────────────
 
 def build_preflight_section(
@@ -213,8 +217,14 @@ def build_preflight_section(
     estimated_total = spec_tokens + file_total + reasoning_buffer
     level = complexity_level(estimated_total)
     note = complexity_note(level)
+    rating = difficulty_rating(level)
 
-    lines = ['## Pre-flight', '']
+    time_str = ''
+    if tok_s and tok_s > 0:
+        secs = estimated_total / tok_s
+        time_str = f' (~{secs:.0f}s)'
+
+    lines = [f'## Pre-flight {rating} {level}{time_str}', '']
     lines.append(f'- Spec: {spec_tokens:,} tokens')
 
     if file_token_counts:
@@ -232,7 +242,6 @@ def build_preflight_section(
         lines.append(f'- Context window: {context_window:,} — {"fits" if fits else "OVERFLOW RISK"}')
 
     if tok_s and tok_s > 0:
-        secs = estimated_total / tok_s
         lines.append(f'- Time estimate: ~{secs:.0f}s at {tok_s:.0f} t/s')
 
     lines.append('')
