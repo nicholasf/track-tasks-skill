@@ -10,6 +10,7 @@ from preflight import (
     append_preflight,
     build_preflight_section,
     complexity_level,
+    difficulty_rating,
     parse_files_to_read,
     parse_model_field,
     read_topology_context_window,
@@ -96,6 +97,20 @@ def test_complexity_l2_at_upper_bound():
 
 def test_complexity_l3_above_threshold():
     assert complexity_level(L2_THRESHOLD + 1) == 'L3'
+
+
+# ── difficulty_rating ─────────────────────────────────────────────────────────
+
+def test_difficulty_rating_l1_one_hourglass():
+    assert difficulty_rating('L1') == '⏳'
+
+
+def test_difficulty_rating_l2_two_hourglasses():
+    assert difficulty_rating('L2') == '⏳⏳'
+
+
+def test_difficulty_rating_l3_three_hourglasses():
+    assert difficulty_rating('L3') == '⏳⏳⏳'
 
 
 # ── tokenize_llama ────────────────────────────────────────────────────────────
@@ -272,6 +287,39 @@ def test_build_preflight_no_tok_s_omits_time_line():
 def test_build_preflight_starts_with_header():
     text = build_preflight_section(500, {}, 12000, 65536, 215.0)
     assert text.startswith('## Pre-flight')
+
+
+def test_build_preflight_header_includes_hourglass_and_level():
+    text = build_preflight_section(500, {}, 12000, 65536, 215.0)
+    first_line = text.splitlines()[0]
+    assert '⏳' in first_line
+    assert 'L1' in first_line
+
+
+def test_build_preflight_header_includes_time():
+    text = build_preflight_section(500, {}, 12000, 65536, 215.0)
+    first_line = text.splitlines()[0]
+    assert '~' in first_line and 's' in first_line
+
+
+def test_build_preflight_header_no_time_when_no_tok_s():
+    text = build_preflight_section(500, {}, 12000, 65536, None)
+    first_line = text.splitlines()[0]
+    assert first_line == '## Pre-flight ⏳ L1'
+
+
+def test_build_preflight_l2_two_hourglasses_in_header():
+    text = build_preflight_section(30000, {}, 0, None, None)
+    first_line = text.splitlines()[0]
+    assert '⏳⏳' in first_line
+    assert 'L2' in first_line
+
+
+def test_build_preflight_l3_three_hourglasses_in_header():
+    text = build_preflight_section(50000, {}, 0, None, None)
+    first_line = text.splitlines()[0]
+    assert '⏳⏳⏳' in first_line
+    assert 'L3' in first_line
 
 
 # ── append_preflight ──────────────────────────────────────────────────────────
