@@ -1,49 +1,86 @@
 # track-tasks-skill
 
-A skill for managing tasks with [local or remote agents](https://github.com/nicholasf/load-topology-skill)).
+Manage units of work as structured Markdown files. Tasks live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. Programme tasks group related sub-tasks for larger workloads.
 
-Tasks are persisted under `/tasks`, can be `pending`, `completed` or `deprecrated`. 
+Depends on [load-topology-skill](https://github.com/nicholasf/load-topology-skill) to identify available nodes and models for delegation.
 
-"Programme-tasks" are umbrella tasks, to organise larger structures of work.
+---
 
+## Examples
 
+```
+/track-tasks
+```
 
-## Topology and task delegation
+Full workflow — create, delegate, or review tasks. Common natural language triggers:
 
-Task delegation relies on [load-topology-skill](https://github.com/nicholasf/load-topology-skill). The topology file describes the machines on your network and which of them are running LLM inference servers (llama-server or Ollama). When assigning a task to a model, the task-tracking skill reads the topology to identify what nodes are available and what models they are running.
-
-A node in the topology with a role of `llm` is a candidate for delegation. Before sending a task, the inference server on that node must be running and reachable. The skill refers to these nodes by their hostname from the topology. Any LLM node running llama-server or Ollama is a valid delegation target.
-
-Delegation works over the node's OpenAI-compatible API endpoint (e.g. `http://pond:9337`). The task file is read and embedded in the request payload; the remote model executes the task and fills in the Results section. Claude then reviews the output rather than doing the work itself, which keeps cloud API token use low.
-
-## Usage
-
-Create a task:
 ```
 create a task to refactor the auth module
+write a task for adding pagination to the user list
+what tasks are pending
+mark this task complete
 ```
 
-Delegate to an LLM node in the topology:
+### Delegate a task to a remote node
+
 ```
-write a task for adding pagination to the user list and send it to pond
+write a task to add input validation to the API and send it to pond-qwen-hermes
 ```
 
-Check what's pending:
+The remote agent executes the task autonomously. Results come back as a **git diff** — the local agent reviews the diff and confirms before marking the task complete.
+
+> PRs are not yet automated and will be addressed separately.
+
+### Check pending work
+
 ```
 what tasks are pending
 ```
 
-Mark complete:
+### Review a completed task
+
 ```
-mark this task complete
+review the results of the auth refactor task
 ```
+
+The local agent reads the `## Results` section filled in by the remote model, runs the acceptance commands, and presents a summary — without reading every changed file (which would spend the tokens that delegation was meant to save).
+
+---
 
 ## How it works
 
-Tasks live as markdown files in `tasks/pending/` and move to `tasks/completed/` when done. Each task specifies a model assignment, a goal, changes, and verifiable done criteria. Completed tasks are logged to `development-log.md`.
+A task file is a specification written before execution. The local agent writes it; a remote agent (or the local agent itself) executes it. When delegated:
 
-See `SKILL.md` for the full format and delegation instructions.
+1. A task file is written to `tasks/pending/` with a goal, changes, and acceptance criteria.
+2. The task is sent to a remote agent handle (e.g. `pond-qwen-hermes`) via [ask-remote-agent](https://github.com/nicholasf/ask-remote-agent-skill).
+3. The remote agent executes the task, fills in `## Results`, and the local agent reviews the **git diff**.
+4. Once confirmed, the task moves to `tasks/completed/` and an entry is added to `development-log.md`.
+
+**Token economy:** local LLM inference is effectively free; cloud model tokens are not. The pattern is: cloud model designs and reviews, local model executes.
+
+---
+
+## Task states
+
+| State | Location |
+|---|---|
+| `planned` / `in-progress` | `tasks/pending/` |
+| `completed` | `tasks/completed/` |
+| `deprecated` | `tasks/deprecated/` |
+
+---
+
+## Programme tasks
+
+A programme task coordinates a group of related sub-tasks — use one when the full work is too large to delegate as a single task. It is an index (under 20 lines); the spec lives in the sub-tasks.
+
+```
+create a programme task for the payment module refactor with sub-tasks for schema, API, and tests
+```
+
+---
 
 ## Dependencies
 
-Requires [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — the topology file is the source of truth for which nodes and models are available for task delegation.
+- [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — topology is the source of truth for which nodes and models are available
+- [ask-remote-agent](https://github.com/nicholasf/ask-remote-agent-skill) — used to delegate task execution to a remote node
