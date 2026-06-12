@@ -10,6 +10,7 @@ import argparse
 import os
 import re
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
 
@@ -48,11 +49,50 @@ def parse_task(path: Path) -> dict:
     }
 
 
+def closed_summary(root: Path) -> str:
+    """Return a one-line summary of completed + deprecated task counts and span."""
+    dates: list[date] = []
+    counts: dict[str, int] = {'completed': 0, 'deprecated': 0}
+
+    for bucket in ('completed', 'deprecated'):
+        bucket_dir = root / 'tasks' / bucket
+        if not bucket_dir.exists():
+            continue
+        for path in bucket_dir.glob('*.md'):
+            counts[bucket] += 1
+            task = parse_task(path)
+            created = task.get('created', '—')
+            m = re.match(r'(\d{4}-\d{2}-\d{2})', created)
+            if m:
+                try:
+                    dates.append(datetime.strptime(m.group(1), '%Y-%m-%d').date())
+                except ValueError:
+                    pass
+
+    total_closed = counts['completed'] + counts['deprecated']
+    if total_closed == 0:
+        return ''
+
+    parts = []
+    if counts['completed']:
+        parts.append(f"{counts['completed']} completed")
+    if counts['deprecated']:
+        parts.append(f"{counts['deprecated']} deprecated")
+    summary = ' · '.join(parts)
+
+    if dates:
+        earliest = min(dates)
+        span = (date.today() - earliest).days
+        summary += f'  —  {span} days (since {earliest})'
+
+    return summary
+
+
 def truncate(s: str, n: int) -> str:
     return s if len(s) <= n else s[: n - 1] + '…'
 
 
-def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: int) -> None:
+def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: int, summary: str = '') -> None:
     if not tasks:
         print(f'No {state} tasks.')
         return
@@ -97,6 +137,8 @@ def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: 
     print()
     if total_pages > 1:
         print(f'  Page {page} of {total_pages} — use --page N to navigate.\n')
+    if summary:
+        print(f'  {summary}\n')
 
 
 def main() -> None:
@@ -134,7 +176,8 @@ def main() -> None:
         sys.exit(1)
 
     tasks = [t for f in page_files if (t := parse_task(f))]
-    print_table(tasks, args.state, args.page, args.per_page, total)
+    summary = closed_summary(root)
+    print_table(tasks, args.state, args.page, args.per_page, total, summary)
 
 
 if __name__ == '__main__':
