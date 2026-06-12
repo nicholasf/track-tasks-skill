@@ -269,6 +269,26 @@ When the output has concrete errors, do not fix them directly — send the task 
 4. Repeat until the output is correct, incrementing the round number each time.
 5. Apply any trivial mechanical fixes yourself (e.g. missing timeout values, a single renamed field) rather than burning another round — note what you changed in `## Results`.
 
+## Show subcommand
+
+Invoke when the user runs `/track-tasks show`, "show tasks", "list tasks", "show completed tasks", or "show deprecated tasks".
+
+Run:
+
+```bash
+python3 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/show.py" \
+  [pending|completed|deprecated] \
+  [--page N] \
+  [--per-page N] \
+  --cwd "$(pwd)"
+```
+
+- Default state is `pending`. Accept `completed` or `deprecated` as the first positional argument.
+- Default page size is 20. Pass `--per-page` to override.
+- Pass `--page N` to navigate multi-page results.
+
+Print the table output directly to the user. If the directory does not exist, report it clearly.
+
 ## Deprecating a task
 
 When a task is superseded before completion — replaced by a programme task, a better-scoped sub-task, or a changed approach — mark it deprecated rather than completed.
