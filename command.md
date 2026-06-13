@@ -302,25 +302,52 @@ python3 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/show.py"
 
 Print the table output directly to the user. If the directory does not exist, report it clearly.
 
-## Deprecating a task
-
-When a task is superseded before completion — replaced by a programme task, a better-scoped sub-task, or a changed approach — mark it deprecated rather than completed.
-
-1. Update its **Status** line to `deprecated`.
-2. Add a `**Deprecated by:** <timestamp>-<slug>.md` line immediately below.
-3. Move the file to `tasks/deprecated/`.
-4. Append a concise entry to `development-log.md` noting what the task was and why it was deprecated.
-
-Do not use `tasks/completed/` for deprecated tasks. Completed means the work was done; deprecated means it was abandoned in favour of something else.
-
 ## Completing a task
 
-When all **Done when** items are checked and (for delegated tasks) the user has confirmed:
+When all **Done when** items are verified, run `complete.py`. It validates the FSM transition,
+fills the `## Results` section, moves the file to `tasks/completed/`, and appends to
+`development-log.md`.
 
-1. Move the file: `mv tasks/pending/<timestamp>-<slug>.md tasks/completed/<timestamp>-<slug>.md`
-   The timestamp prefix is preserved so completed tasks are ordered chronologically in a directory listing.
-2. Update its **Status** line to `completed`.
-3. Append a concise summary to `development-log.md` covering what changed and any decisions made during execution.
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/complete.py" \
+  tasks/pending/<timestamp>-<slug>.md \
+  --summary "What was done" \
+  --tests "5 pass, 0 fail" \
+  --files-changed "foo.py (+40), bar.py (-12)" \
+  --cwd "$(pwd)"
+```
+
+`complete.py` prints the path of the moved file to stdout. It will exit non-zero if the task
+is already `completed` or `deprecated`.
+
+| Argument | Required | Description |
+|---|---|---|
+| `task` | yes | Path to the task file |
+| `--summary` | yes | What was done |
+| `--tests` | yes | Test outcome (e.g. "all pass", "5 pass 0 fail") |
+| `--files-changed` | yes | Files changed with counts |
+| `--cwd` | no | Project root (default: inferred from task path) |
+
+## Deprecating a task
+
+When a task is superseded before completion, run `deprecate.py`. It validates the FSM transition,
+adds `**Deprecated by:**`, moves the file to `tasks/deprecated/`, and appends to
+`development-log.md`.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/deprecate.py" \
+  tasks/pending/<timestamp>-<slug>.md \
+  --reason "Superseded by programme task" \
+  --deprecated-by "<timestamp>-<new-slug>.md" \
+  --cwd "$(pwd)"
+```
+
+`--deprecated-by` is optional — omit it if there is no direct replacement.
+
+`deprecate.py` prints the path of the moved file to stdout. It will exit non-zero if the task
+is already `completed` or `deprecated`.
 
 ## Directory structure
 

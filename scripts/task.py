@@ -1,12 +1,14 @@
 from pydantic import BaseModel
 
+from workflow import TaskState
+
 
 class Task(BaseModel):
     title: str
     goal: str
     model: str
     agent: str
-    status: str = 'planned'
+    status: TaskState = TaskState.pending
     created: str = ''
     background: str = ''
     changes: list[str] = []

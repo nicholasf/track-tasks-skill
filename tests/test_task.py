@@ -30,7 +30,7 @@ def test_task_requires_agent():
 
 def test_task_defaults():
     task = Task.model_validate(_minimal())
-    assert task.status == 'planned'
+    assert task.status == 'pending'
     assert task.background == ''
     assert task.changes == []
     assert task.files_to_read == []
