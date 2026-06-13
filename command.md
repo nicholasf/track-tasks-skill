@@ -37,60 +37,73 @@ General guidance (override with topology.md when present):
 
 ## Task file format
 
-File name: `tasks/pending/<timestamp>-<slug>.md` — timestamp in `YYYY-MM-DDTHH-MM-SS` format (using `-` as the time separator so it is shell-safe), followed by a lowercase, hyphenated, descriptive slug. Example: `2026-05-02T14-30-00-add-user-avatar.md`.
+Task files are created by `create.py`, not written directly. `create.py` runs
+preflight estimation and writes the file atomically — no task exists without a
+preflight result.
 
-Generate the timestamp at the moment the file is created (use `date +%Y-%m-%dT%H-%M-%S` or the equivalent).
+### Creating a task
 
-```markdown
-# <Title>
+Collect the task fields as a JSON object and pass them to `create.py`:
 
-**Created:** <YYYY-MM-DD HH:MM:SS>
-**Model:** <model name and why, e.g. "Qwen2.5-Coder 32B — mechanical rename across known files">
-**Status:** planned
-
-## Goal
-One sentence. What will be true when this task is done?
-
-## Background
-Optional. Link to design docs, prior decisions, or relevant context.
-Omit if the goal is self-explanatory.
-
-## Changes
-Enumerate what will change. Be specific:
-- Files to create or modify
-- Schema changes
-- Seed changes
-- API / type changes
-- Test changes
-
-## Files to read before starting
-List the file paths the executing model must read to do the work. These are
-tokenised during pre-flight estimation to compute the L1/L2/L3 complexity level.
-Omit files the model can derive or generate without reading.
-- path/to/file.py
-- path/to/schema.sql
-
-## Open questions
-List anything that must be decided before or during execution.
-If there are none, omit this section.
-
-## Recommended approach
-How to sequence the work. Note any non-obvious ordering constraints.
-
-## Done when
-- [ ] Specific, verifiable outcome
-- [ ] Acceptance command that must pass, e.g. `pnpm jest --forceExit`
-- [ ] Entry added to `development-log.md`
-
-## Pre-flight
-<!-- Filled in by preflight.py before delegation — do not edit by hand -->
-
-## Results
-<!-- Filled in by the executing model after completion -->
-**Tests:** 
-**Files changed:** 
-**Summary:** 
+```bash
+echo '{
+  "title": "Add logging to gate",
+  "goal": "Gate logs all requests at INFO level.",
+  "model": "qwen3-coder-30b on pond — mechanical wiring",
+  "agent": "pond-qwen-hermes",
+  "background": "Logging is currently absent from the gate service.",
+  "changes": ["Add structlog to gate/requirements.txt", "Wire logging in gate/main.py"],
+  "files_to_read": ["backend/gate/main.py", "backend/gate/requirements.txt"],
+  "open_questions": [],
+  "recommended_approach": "Install structlog first, then wire at the request boundary.",
+  "done_when": ["All requests log at INFO", "uv run pytest passes"]
+}' | "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+     "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/create.py" \
+     --hostname pond \
+     --backend llama-server \
+     --agent hermes \
+     --cwd "$(pwd)"
 ```
+
+`create.py` prints the path of the written file to stdout.
+
+### Arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `--hostname` | *(empty)* | Inference node for remote tokenizer and topology lookups. Omit to use local tokenizer. |
+| `--backend` | `llama-server` | `llama-server` or `ollama` |
+| `--agent` | `hermes` | Agent name for reasoning buffer lookup in topology |
+| `--model` | *(empty)* | Model name for tok/s lookup (required for Ollama) |
+| `--local` | false | Force `LocalTokenizer` even if a remote hostname is supplied |
+| `--cwd` | current dir | Project root — where `tasks/pending/` will be created |
+| `--input` | stdin | Path to a JSON file instead of reading from stdin |
+
+### Required JSON fields
+
+| Field | Type | Description |
+|---|---|---|
+| `title` | string | Short title |
+| `goal` | string | One sentence — what will be true when this is done |
+| `model` | string | Model name and rationale |
+| `agent` | string | Agent handle (e.g. `pond-qwen-hermes`) |
+
+### Optional JSON fields
+
+`background`, `changes` (list), `files_to_read` (list), `open_questions` (list),
+`recommended_approach`, `done_when` (list). All default to empty.
+
+### Preflight values
+
+`create.py` always populates the `## Pre-flight` section before writing:
+
+| Value | Meaning |
+|---|---|
+| `## Pre-flight ⏳ L1 ...` | Estimated via remote or local tokenizer |
+| `unavailable-via-remote` | Remote tokenizer targeted but unreachable |
+| `unavailable-via-local` | Local tokenizer (tiktoken) also failed |
+
+L3 tasks should be broken into a programme task before delegation.
 
 ## Programme tasks
 

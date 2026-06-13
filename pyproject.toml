@@ -2,6 +2,10 @@
 name = "track-tasks-skill"
 version = "0.1.0"
 requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.13.4",
+    "tiktoken>=0.13.0",
+]
 
 [project.optional-dependencies]
 dev = [
