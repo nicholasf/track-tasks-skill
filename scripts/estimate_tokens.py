@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-preflight.py — estimate token usage for a task before delegating to a remote agent.
+estimate_tokens.py — estimate token usage for a task before delegating to a remote agent.
 
 Algorithm:
   estimated_total = spec_tokens + file_tokens + reasoning_buffer
@@ -215,7 +214,7 @@ def difficulty_rating(level: str) -> str:
 
 # ── Pre-flight block ──────────────────────────────────────────────────────────
 
-def build_preflight_section(
+def build_token_estimate_section(
     spec_tokens: int,
     file_token_counts: dict[str, int],
     reasoning_buffer: int,
@@ -259,7 +258,7 @@ def build_preflight_section(
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_preflight(
+def run_token_estimate(
     task_path: str,
     hostname: str,
     backend: str,
@@ -310,7 +309,7 @@ def run_preflight(
     context_window = read_topology_context_window(topology_path, hostname, backend)
     tok_s = read_topology_tok_s(topology_path, hostname, model)
 
-    return build_preflight_section(
+    return build_token_estimate_section(
         spec_tokens=spec_tokens,
         file_token_counts=file_token_counts,
         reasoning_buffer=reasoning_buffer,
@@ -319,7 +318,7 @@ def run_preflight(
     )
 
 
-def append_preflight(task_path: str, preflight_text: str) -> None:
+def append_token_estimate(task_path: str, preflight_text: str) -> None:
     """Replace or append the ## Pre-flight section in the task file."""
     with open(task_path) as f:
         content = f.read()

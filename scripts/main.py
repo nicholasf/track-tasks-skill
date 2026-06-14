@@ -9,7 +9,7 @@ from create import select_tokenizer, create_task
 from complete import complete_task
 from deprecate import deprecate_task
 from mark_as_hallucinated import mark_as_hallucinated
-from preflight import run_preflight, append_preflight
+from estimate_tokens import run_token_estimate, append_token_estimate
 
 
 def _cmd_create(args: argparse.Namespace) -> None:
@@ -106,9 +106,9 @@ def _cmd_show(args: argparse.Namespace) -> None:
     show_mod.print_table(tasks, args.state, args.page, args.per_page, total, summary)
 
 
-def _cmd_preflight(args: argparse.Namespace) -> None:
+def _cmd_estimate_tokens(args: argparse.Namespace) -> None:
     try:
-        preflight = run_preflight(
+        estimate = run_token_estimate(
             task_path=args.task,
             hostname=args.hostname,
             backend=args.backend,
@@ -117,12 +117,12 @@ def _cmd_preflight(args: argparse.Namespace) -> None:
             cwd=args.cwd,
         )
     except Exception as error:
-        print(f'[preflight] {error}', file=sys.stderr)
+        print(f'[estimate-tokens] {error}', file=sys.stderr)
         sys.exit(1)
-    print(preflight)
+    print(estimate)
     if args.write:
-        append_preflight(args.task, preflight)
-        print(f'Pre-flight section written to {args.task}', file=sys.stderr)
+        append_token_estimate(args.task, estimate)
+        print(f'Token estimate written to {args.task}', file=sys.stderr)
 
 
 def main() -> None:
@@ -134,7 +134,7 @@ def main() -> None:
     sub.required = True
 
     # ── create ────────────────────────────────────────────────────────────────
-    p = sub.add_parser('create', help='Create a new task file with preflight estimation')
+    p = sub.add_parser('create', help='Create a new task file with token estimation')
     p.add_argument('--input', help='JSON file path (default: read from stdin)')
     p.add_argument('--hostname', default='', help='Inference node hostname')
     p.add_argument('--backend', default='llama-server', choices=['llama-server', 'ollama'])
@@ -185,8 +185,8 @@ def main() -> None:
     p.add_argument('--cwd', default=None, help='Project root directory')
     p.set_defaults(func=_cmd_show)
 
-    # ── preflight ─────────────────────────────────────────────────────────────
-    p = sub.add_parser('preflight', help='Compute a preflight token estimate for a task')
+    # ── estimate-tokens ───────────────────────────────────────────────────────
+    p = sub.add_parser('estimate-tokens', help='Estimate token cost and complexity for a task')
     p.add_argument('task', help='Path to the task file')
     p.add_argument('--hostname', required=True, help='Inference node hostname')
     p.add_argument('--backend', default='llama-server', choices=['llama-server', 'ollama'],
@@ -196,8 +196,8 @@ def main() -> None:
     p.add_argument('--model', default='', help='Model name (required for Ollama)')
     p.add_argument('--cwd', default=None, help='Base directory for resolving task file paths')
     p.add_argument('--write', action='store_true',
-                   help='Write the preflight section back to the task file')
-    p.set_defaults(func=_cmd_preflight)
+                   help='Write the token estimate back to the task file')
+    p.set_defaults(func=_cmd_estimate_tokens)
 
     args = parser.parse_args()
     args.func(args)

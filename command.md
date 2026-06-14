@@ -38,8 +38,8 @@ General guidance (override with topology.md when present):
 ## Task file format
 
 Task files are created via the `create` subcommand of `main.py`, not written directly. It runs
-preflight estimation and writes the file atomically — no task exists without a
-preflight result.
+token estimation and writes the file atomically — no task exists without a
+token estimate.
 
 ### Creating a task
 
@@ -176,14 +176,14 @@ If you catch yourself writing a complete function body, stop. Replace it with a 
 
 ## Estimate time
 
-Invoke when the user runs `/track-tasks estimate-time <description or file path>`, or says "estimate time", "how long will this take", "what's the difficulty", "rate this task", or "preflight this task".
+Invoke when the user runs `/track-tasks estimate-time <description or file path>`, or says "estimate time", "how long will this take", "what's the difficulty", "rate this task", or "estimate tokens for this task".
 
-Before delegating a task, estimate its token cost and difficulty rating so the user knows what to expect. If the inference backend is reachable, run `main.py preflight`:
+Before delegating a task, estimate its token cost and difficulty rating so the user knows what to expect. If the inference backend is reachable, run `main.py estimate-tokens`:
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
-  preflight \
+  estimate-tokens \
   tasks/pending/<timestamp>-<slug>.md \
   --hostname <node> \
   --backend llama-server \
@@ -199,12 +199,12 @@ Before delegating a task, estimate its token cost and difficulty rating so the u
 
 If the inference backend is not reachable, estimate token counts using ~4 characters per token as a heuristic, read the task file and any listed files yourself, and report an approximate rating with a note that it is estimated.
 
-Run `preflight` via `main.py`:
+Run `estimate-tokens` via `main.py`:
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
-  preflight \
+  estimate-tokens \
   tasks/pending/<timestamp>-<slug>.md \
   --hostname <node> \
   --backend llama-server \

@@ -9,8 +9,8 @@ from task import Task, render
 from tokenizer import Tokenizer
 from tokenizer_local import LocalTokenizer
 from tokenizer_remote import RemoteTokenizer
-from preflight import (
-    build_preflight_section,
+from estimate_tokens import (
+    build_token_estimate_section,
     get_topology_path,
     read_topology_context_window,
     read_topology_reasoning_buffer,
@@ -71,7 +71,7 @@ def _compute_preflight(
         if hostname and model else None
     )
 
-    return build_preflight_section(
+    return build_token_estimate_section(
         spec_tokens=spec_tokens,
         file_token_counts=file_token_counts,
         reasoning_buffer=reasoning_buffer,

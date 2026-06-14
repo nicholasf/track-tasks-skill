@@ -91,7 +91,7 @@ A task file is a specification written before execution. The local agent writes 
 
 ## Estimate time
 
-Ask "estimate time for this task", "how long will this take", or "what's the difficulty" before delegating. `preflight.py` counts tokens across the task spec, all files it needs to read, and the model's reasoning overhead, then rates the task **relative to the context window of the target node**:
+Ask "estimate time for this task", "how long will this take", or "what's the difficulty" before delegating. `main.py estimate-tokens` counts tokens across the task spec, all files it needs to read, and the model's reasoning overhead, then rates the task **relative to the context window of the target node**:
 
 | Rating | Level | Estimated tokens | Meaning |
 |---|---|---|---|
