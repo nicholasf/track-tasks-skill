@@ -121,11 +121,14 @@ The duration estimate comes from `estimated_total ÷ tok/s`, where throughput is
 
 ## Task states
 
-| State | Location |
-|---|---|
-| `planned` / `in-progress` | `tasks/pending/` |
-| `completed` | `tasks/completed/` |
-| `deprecated` | `tasks/deprecated/` |
+| State | Location | Meaning |
+|---|---|---|
+| `planned` / `in-progress` | `tasks/pending/` | Active work |
+| `completed` | `tasks/completed/` | Successfully finished |
+| `deprecated` | `tasks/deprecated/` | Superseded before completion |
+| `hallucinated` | `tasks/hallucinated/` | The executing LLM claimed to complete the task but produced no real output |
+
+Tasks marked `hallucinated` preserve the full solution the LLM reported, the agent handle that produced it, the agent handle that caught it, and the reason it was judged a hallucination — so patterns can be analysed later.
 
 ---
 

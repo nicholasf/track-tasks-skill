@@ -37,13 +37,13 @@ General guidance (override with topology.md when present):
 
 ## Task file format
 
-Task files are created by `create.py`, not written directly. `create.py` runs
+Task files are created via the `create` subcommand of `main.py`, not written directly. It runs
 preflight estimation and writes the file atomically — no task exists without a
 preflight result.
 
 ### Creating a task
 
-Collect the task fields as a JSON object and pass them to `create.py`:
+Collect the task fields as a JSON object and pass them to `main.py create`:
 
 ```bash
 echo '{
@@ -58,14 +58,15 @@ echo '{
   "recommended_approach": "Install structlog first, then wire at the request boundary.",
   "done_when": ["All requests log at INFO", "uv run pytest passes"]
 }' | "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
-     "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/create.py" \
+     "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+     create \
      --hostname pond \
      --backend llama-server \
      --agent hermes \
      --cwd "$(pwd)"
 ```
 
-`create.py` prints the path of the written file to stdout.
+`main.py create` prints the path of the written file to stdout.
 
 ### Arguments
 
@@ -177,11 +178,12 @@ If you catch yourself writing a complete function body, stop. Replace it with a 
 
 Invoke when the user runs `/track-tasks estimate-time <description or file path>`, or says "estimate time", "how long will this take", "what's the difficulty", "rate this task", or "preflight this task".
 
-Before delegating a task, estimate its token cost and difficulty rating so the user knows what to expect. If the inference backend is reachable, run `preflight.py` directly:
+Before delegating a task, estimate its token cost and difficulty rating so the user knows what to expect. If the inference backend is reachable, run `main.py preflight`:
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
-  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/preflight.py" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  preflight \
   tasks/pending/<timestamp>-<slug>.md \
   --hostname <node> \
   --backend llama-server \
@@ -196,6 +198,19 @@ Before delegating a task, estimate its token cost and difficulty rating so the u
 ```
 
 If the inference backend is not reachable, estimate token counts using ~4 characters per token as a heuristic, read the task file and any listed files yourself, and report an approximate rating with a note that it is estimated.
+
+Run `preflight` via `main.py`:
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  preflight \
+  tasks/pending/<timestamp>-<slug>.md \
+  --hostname <node> \
+  --backend llama-server \
+  --agent hermes \
+  --write
+```
 
 ### How the estimate is built
 
@@ -284,19 +299,21 @@ When the output has concrete errors, do not fix them directly — send the task 
 
 ## Show subcommand
 
-Invoke when the user runs `/track-tasks show`, "show tasks", "list tasks", "show completed tasks", or "show deprecated tasks".
+Invoke when the user runs `/track-tasks show`, "show tasks", "list tasks", "show completed tasks", "show deprecated tasks", or "show hallucinated tasks".
 
 Run:
 
 ```bash
-python3 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/show.py" \
-  [pending|completed|deprecated] \
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  show \
+  [pending|completed|deprecated|hallucinated] \
   [--page N] \
   [--per-page N] \
   --cwd "$(pwd)"
 ```
 
-- Default state is `pending`. Accept `completed` or `deprecated` as the first positional argument.
+- Default state is `pending`. Accept `completed`, `deprecated`, or `hallucinated` as the first positional argument.
 - Default page size is 20. Pass `--per-page` to override.
 - Pass `--page N` to navigate multi-page results.
 
@@ -304,13 +321,14 @@ Print the table output directly to the user. If the directory does not exist, re
 
 ## Completing a task
 
-When all **Done when** items are verified, run `complete.py`. It validates the FSM transition,
+When all **Done when** items are verified, run `main.py complete`. It validates the FSM transition,
 fills the `## Results` section, moves the file to `tasks/completed/`, and appends to
 `development-log.md`.
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
-  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/complete.py" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  complete \
   tasks/pending/<timestamp>-<slug>.md \
   --summary "What was done" \
   --tests "5 pass, 0 fail" \
@@ -318,8 +336,7 @@ fills the `## Results` section, moves the file to `tasks/completed/`, and append
   --cwd "$(pwd)"
 ```
 
-`complete.py` prints the path of the moved file to stdout. It will exit non-zero if the task
-is already `completed` or `deprecated`.
+Prints the path of the moved file to stdout. Exits non-zero if the task is already `completed` or `deprecated`.
 
 | Argument | Required | Description |
 |---|---|---|
@@ -331,13 +348,14 @@ is already `completed` or `deprecated`.
 
 ## Deprecating a task
 
-When a task is superseded before completion, run `deprecate.py`. It validates the FSM transition,
+When a task is superseded before completion, run `main.py deprecate`. It validates the FSM transition,
 adds `**Deprecated by:**`, moves the file to `tasks/deprecated/`, and appends to
 `development-log.md`.
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
-  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/deprecate.py" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  deprecate \
   tasks/pending/<timestamp>-<slug>.md \
   --reason "Superseded by programme task" \
   --deprecated-by "<timestamp>-<new-slug>.md" \
@@ -346,8 +364,37 @@ adds `**Deprecated by:**`, moves the file to `tasks/deprecated/`, and appends to
 
 `--deprecated-by` is optional — omit it if there is no direct replacement.
 
-`deprecate.py` prints the path of the moved file to stdout. It will exit non-zero if the task
-is already `completed` or `deprecated`.
+Prints the path of the moved file to stdout. Exits non-zero if the task is already `completed` or `deprecated`.
+
+## Marking a task as hallucinated
+
+When a delegated agent claims to have completed a task but produced no real output, run
+`main.py mark-as-hallucinated`. It validates the FSM transition, records the claimed solution
+and the judgement metadata, moves the file to `tasks/hallucinated/`, and appends to
+`development-log.md`.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  mark-as-hallucinated \
+  tasks/pending/<timestamp>-<slug>.md \
+  --solution "The agent reported it had refactored auth.py but no files changed." \
+  --hallucinating-agent-handle "pond-qwen-hermes" \
+  --reporter "local-claude" \
+  --reason "git diff was empty after the agent reported completion" \
+  --cwd "$(pwd)"
+```
+
+Prints the path of the moved file to stdout. Exits non-zero if the task is already in a final state.
+
+| Argument | Required | Description |
+|---|---|---|
+| `task` | yes | Path to the task file |
+| `--solution` | yes | The full solution the LLM claimed to have produced |
+| `--hallucinating-agent-handle` | no | Agent handle that produced the hallucination |
+| `--reporter` | no | Agent handle that judged this a hallucination |
+| `--reason` | no | Why it was judged as a hallucination |
+| `--cwd` | no | Project root (default: inferred from task path) |
 
 ## Directory structure
 
@@ -356,6 +403,7 @@ tasks/
   pending/      # tasks not yet complete
   completed/    # finished tasks, kept for reference
   deprecated/   # tasks superseded before completion
+  hallucinated/ # tasks where the executing LLM hallucinated a solution
 development-log.md
 ```
 
