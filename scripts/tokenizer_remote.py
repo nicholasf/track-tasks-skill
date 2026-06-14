@@ -29,13 +29,13 @@ class RemoteTokenizer(TokenizerMixin):
 
     def count(self, text: str) -> int:
         if self._backend == 'llama-server':
-            result = self._tokenize_llama(text)
+            tokens = self._tokenize_llama(text)
         else:
-            result = self._tokenize_ollama(text)
-        self._print_visualisation()
-        return result
+            tokens = self._tokenize_ollama(text)
+        self._print_tokens(tokens)
+        return len(tokens)
 
-    def _tokenize_llama(self, text: str) -> int:
+    def _tokenize_llama(self, text: str) -> list[int]:
         body = json.dumps({'content': text}).encode()
         req = urllib.request.Request(
             f'http://{self._hostname}:{self._port}/tokenize',
@@ -45,9 +45,9 @@ class RemoteTokenizer(TokenizerMixin):
         )
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read())
-        return len(data.get('tokens', []))
+        return data.get('tokens', [])
 
-    def _tokenize_ollama(self, text: str) -> int:
+    def _tokenize_ollama(self, text: str) -> list[int]:
         body = json.dumps({'model': self._model, 'prompt': text}).encode()
         req = urllib.request.Request(
             f'http://{self._hostname}:{self._port}/api/tokenize',
@@ -57,4 +57,4 @@ class RemoteTokenizer(TokenizerMixin):
         )
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read())
-        return len(data.get('tokens', []))
+        return data.get('tokens', [])
