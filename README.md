@@ -91,7 +91,7 @@ A task file is a specification written before execution. The local agent writes 
 
 ## Estimate time
 
-Ask "estimate time for this task", "how long will this take", or "what's the difficulty" before delegating. `preflight.py` counts tokens across the task spec, all files it needs to read, and the model's reasoning overhead, then rates the task **relative to the context window of the target node**:
+Ask "estimate time for this task", "how long will this take", or "what's the difficulty" before delegating. `main.py estimate-tokens` counts tokens across the task spec, all files it needs to read, and the model's reasoning overhead, then rates the task **relative to the context window of the target node**:
 
 | Rating | Level | Estimated tokens | Meaning |
 |---|---|---|---|
@@ -121,11 +121,14 @@ The duration estimate comes from `estimated_total ÷ tok/s`, where throughput is
 
 ## Task states
 
-| State | Location |
-|---|---|
-| `planned` / `in-progress` | `tasks/pending/` |
-| `completed` | `tasks/completed/` |
-| `deprecated` | `tasks/deprecated/` |
+| State | Location | Meaning |
+|---|---|---|
+| `planned` / `in-progress` | `tasks/pending/` | Active work |
+| `completed` | `tasks/completed/` | Successfully finished |
+| `deprecated` | `tasks/deprecated/` | Superseded before completion |
+| `hallucinated` | `tasks/hallucinated/` | The executing LLM claimed to complete the task but produced no real output |
+
+Tasks marked `hallucinated` preserve the full solution the LLM reported, the agent handle that produced it, the agent handle that caught it, and the reason it was judged a hallucination — so patterns can be analysed later.
 
 ---
 

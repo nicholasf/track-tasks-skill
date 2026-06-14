@@ -13,6 +13,6 @@ class LocalTokenizer(TokenizerMixin):
         except ImportError as error:
             raise RuntimeError('tiktoken is not installed; run: uv add tiktoken') from error
         enc = tiktoken.get_encoding('cl100k_base')
-        result = len(enc.encode(text))
-        self._print_visualisation()
-        return result
+        tokens = enc.encode(text)
+        self._print_tokens(list(tokens))
+        return len(tokens)

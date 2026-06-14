@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-import argparse
 import json
 import os
 import re
@@ -11,8 +9,8 @@ from task import Task, render
 from tokenizer import Tokenizer
 from tokenizer_local import LocalTokenizer
 from tokenizer_remote import RemoteTokenizer
-from preflight import (
-    build_preflight_section,
+from estimate_tokens import (
+    build_token_estimate_section,
     get_topology_path,
     read_topology_context_window,
     read_topology_reasoning_buffer,
@@ -20,15 +18,11 @@ from preflight import (
 )
 
 
-def _select_tokenizer(args: argparse.Namespace) -> tuple[Tokenizer, str]:
-    if args.local or not args.hostname:
+def select_tokenizer(local: bool, hostname: str, backend: str, model: str) -> tuple[Tokenizer, str]:
+    if local or not hostname:
         return LocalTokenizer(), 'local'
     try:
-        tokenizer = RemoteTokenizer(
-            hostname=args.hostname,
-            backend=args.backend,
-            model=args.model,
-        )
+        tokenizer = RemoteTokenizer(hostname=hostname, backend=backend, model=model)
         tokenizer.probe()
         return tokenizer, 'remote'
     except Exception as error:
@@ -77,7 +71,7 @@ def _compute_preflight(
         if hostname and model else None
     )
 
-    return build_preflight_section(
+    return build_token_estimate_section(
         spec_tokens=spec_tokens,
         file_token_counts=file_token_counts,
         reasoning_buffer=reasoning_buffer,
@@ -115,47 +109,3 @@ def create_task(
     return task_path
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description='Create a task file with mandatory preflight estimation')
-    parser.add_argument('--input', help='JSON file path (default: read from stdin)')
-    parser.add_argument('--hostname', default='', help='Inference node hostname')
-    parser.add_argument('--backend', default='llama-server', choices=['llama-server', 'ollama'])
-    parser.add_argument('--agent', default='hermes', help='Agent name for reasoning buffer lookup')
-    parser.add_argument('--model', default='', help='Model name for tok/s lookup')
-    parser.add_argument('--local', action='store_true', help='Force use of LocalTokenizer')
-    parser.add_argument('--cwd', default=None, help='Project root directory (default: current directory)')
-    args = parser.parse_args()
-
-    cwd = args.cwd or os.getcwd()
-
-    try:
-        if args.input:
-            task_fields = json.loads(Path(args.input).read_text())
-        else:
-            task_fields = json.load(sys.stdin)
-    except (json.JSONDecodeError, OSError) as error:
-        print(f'[create] could not read task JSON: {error}', file=sys.stderr)
-        sys.exit(1)
-
-    tokenizer, tokenizer_source = _select_tokenizer(args)
-
-    try:
-        task_path = create_task(
-            task_fields=task_fields,
-            tokenizer=tokenizer,
-            tokenizer_source=tokenizer_source,
-            hostname=args.hostname,
-            backend=args.backend,
-            agent_name=args.agent,
-            model=args.model,
-            cwd=cwd,
-        )
-    except Exception as error:
-        print(f'[create] failed: {error}', file=sys.stderr)
-        sys.exit(1)
-
-    print(task_path)
-
-
-if __name__ == '__main__':
-    main()

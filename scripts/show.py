@@ -6,10 +6,8 @@ Usage:
   show.py [pending|completed|deprecated] [--page N] [--per-page N] [--cwd DIR]
 """
 
-import argparse
 import os
 import re
-import sys
 from datetime import date, datetime
 from pathlib import Path
 
@@ -141,44 +139,3 @@ def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: 
         print(f'  {summary}\n')
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description='Show a summary table of task files')
-    parser.add_argument(
-        'state',
-        nargs='?',
-        default='pending',
-        choices=['pending', 'completed', 'deprecated'],
-        help='Task bucket to display (default: pending)',
-    )
-    parser.add_argument('--page', type=int, default=1, help='Page number (default: 1)')
-    parser.add_argument('--per-page', type=int, default=20, dest='per_page',
-                        help='Tasks per page (default: 20)')
-    parser.add_argument('--cwd', default=None,
-                        help='Project root directory (default: current directory)')
-    args = parser.parse_args()
-
-    root = Path(args.cwd) if args.cwd else Path.cwd()
-    task_dir = root / 'tasks' / args.state
-
-    if not task_dir.exists():
-        print(f'Directory not found: {task_dir}', file=sys.stderr)
-        sys.exit(1)
-
-    files = sorted(task_dir.glob('*.md'))
-    total = len(files)
-
-    start = (args.page - 1) * args.per_page
-    page_files = files[start: start + args.per_page]
-
-    if not page_files and args.page > 1:
-        total_pages = max(1, (total + args.per_page - 1) // args.per_page)
-        print(f'Page {args.page} out of range (total pages: {total_pages}).', file=sys.stderr)
-        sys.exit(1)
-
-    tasks = [t for f in page_files if (t := parse_task(f))]
-    summary = closed_summary(root)
-    print_table(tasks, args.state, args.page, args.per_page, total, summary)
-
-
-if __name__ == '__main__':
-    main()

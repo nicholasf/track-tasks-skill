@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-preflight.py — estimate token usage for a task before delegating to a remote agent.
+estimate_tokens.py — estimate token usage for a task before delegating to a remote agent.
 
 Algorithm:
   estimated_total = spec_tokens + file_tokens + reasoning_buffer
@@ -25,7 +24,6 @@ Sources:
 import json
 import os
 import re
-import sys
 import urllib.request
 from pathlib import Path
 
@@ -216,7 +214,7 @@ def difficulty_rating(level: str) -> str:
 
 # ── Pre-flight block ──────────────────────────────────────────────────────────
 
-def build_preflight_section(
+def build_token_estimate_section(
     spec_tokens: int,
     file_token_counts: dict[str, int],
     reasoning_buffer: int,
@@ -260,7 +258,7 @@ def build_preflight_section(
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_preflight(
+def run_token_estimate(
     task_path: str,
     hostname: str,
     backend: str,
@@ -311,7 +309,7 @@ def run_preflight(
     context_window = read_topology_context_window(topology_path, hostname, backend)
     tok_s = read_topology_tok_s(topology_path, hostname, model)
 
-    return build_preflight_section(
+    return build_token_estimate_section(
         spec_tokens=spec_tokens,
         file_token_counts=file_token_counts,
         reasoning_buffer=reasoning_buffer,
@@ -320,7 +318,7 @@ def run_preflight(
     )
 
 
-def append_preflight(task_path: str, preflight_text: str) -> None:
+def append_token_estimate(task_path: str, preflight_text: str) -> None:
     """Replace or append the ## Pre-flight section in the task file."""
     with open(task_path) as f:
         content = f.read()
@@ -335,38 +333,3 @@ def append_preflight(task_path: str, preflight_text: str) -> None:
         f.write(content + '\n\n' + preflight_text)
 
 
-def main() -> None:
-    import argparse
-    parser = argparse.ArgumentParser(description='Pre-flight token estimate for a task file')
-    parser.add_argument('task', help='Path to the task file')
-    parser.add_argument('--hostname', required=True, help='Inference node hostname')
-    parser.add_argument('--backend', default='llama-server',
-                        choices=['llama-server', 'ollama'],
-                        help='Inference backend (default: llama-server)')
-    parser.add_argument('--agent', default='hermes',
-                        help='Agent name in topology Agent State (default: hermes)')
-    parser.add_argument('--model', default='',
-                        help='Model name (required for Ollama tokenisation)')
-    parser.add_argument('--cwd', default=None,
-                        help='Base directory for resolving relative file paths in the task')
-    parser.add_argument('--write', action='store_true',
-                        help='Append the Pre-flight section to the task file')
-    args = parser.parse_args()
-
-    preflight = run_preflight(
-        task_path=args.task,
-        hostname=args.hostname,
-        backend=args.backend,
-        agent_name=args.agent,
-        model=args.model,
-        cwd=args.cwd,
-    )
-    print(preflight)
-
-    if args.write:
-        append_preflight(args.task, preflight)
-        print(f'Pre-flight section written to {args.task}', file=sys.stderr)
-
-
-if __name__ == '__main__':
-    main()

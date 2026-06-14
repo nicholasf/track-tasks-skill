@@ -29,40 +29,69 @@ def _set_status(content: str, new_status: TaskState) -> str:
     )
 
 
-def _add_deprecated_by(content: str, deprecated_by: str) -> str:
+def _add_hallucination_metadata(
+    content: str,
+    hallucinating_agent_handle: str,
+    reporter: str,
+    reason: str,
+) -> str:
+    fields = ''
+    if hallucinating_agent_handle:
+        fields += f'**Hallucinating agent:** {hallucinating_agent_handle}\n'
+    if reporter:
+        fields += f'**Reported by:** {reporter}\n'
+    if reason:
+        fields += f'**Reason:** {reason}\n'
+    if not fields:
+        return content
     return re.sub(
         r'(\*\*Status:\*\*[^\n]*\n)',
-        f'\\1**Deprecated by:** {deprecated_by}\n',
+        f'\\1{fields}',
         content,
         count=1,
     )
 
 
+def _fill_results(content: str, solution: str) -> str:
+    results_block = (
+        f'## Results\n'
+        f'**Hallucinated solution:**\n\n{solution}\n'
+    )
+    return re.sub(
+        r'^## Results\b.*',
+        results_block,
+        content,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+
+
 def _append_dev_log(dev_log_path: Path, title: str, reason: str) -> None:
     today = date.today().isoformat()
-    entry = f'\n## {today} — {title} (deprecated)\n\n- {reason}\n'
+    entry = f'\n## {today} — {title} (hallucinated)\n\n- {reason}\n'
     with dev_log_path.open('a') as f:
         f.write(entry)
 
 
-def deprecate_task(
+def mark_as_hallucinated(
     task_path: Path,
+    solution: str,
+    hallucinating_agent_handle: str,
+    reporter: str,
     reason: str,
-    deprecated_by: str,
     cwd: Path,
 ) -> Path:
     content = task_path.read_text()
     current = _read_status(content)
-    transition(current, TaskState.deprecated)
+    transition(current, TaskState.hallucinated)
 
     title = _read_title(content)
-    content = _set_status(content, TaskState.deprecated)
-    if deprecated_by:
-        content = _add_deprecated_by(content, deprecated_by)
+    content = _set_status(content, TaskState.hallucinated)
+    content = _add_hallucination_metadata(content, hallucinating_agent_handle, reporter, reason)
+    content = _fill_results(content, solution)
 
-    deprecated_dir = cwd / 'tasks' / 'deprecated'
-    deprecated_dir.mkdir(parents=True, exist_ok=True)
-    dest = deprecated_dir / task_path.name
+    hallucinated_dir = cwd / 'tasks' / 'hallucinated'
+    hallucinated_dir.mkdir(parents=True, exist_ok=True)
+    dest = hallucinated_dir / task_path.name
     dest.write_text(content)
     task_path.unlink()
 
