@@ -25,7 +25,6 @@ Sources:
 import json
 import os
 import re
-import sys
 import urllib.request
 from pathlib import Path
 
@@ -335,38 +334,3 @@ def append_preflight(task_path: str, preflight_text: str) -> None:
         f.write(content + '\n\n' + preflight_text)
 
 
-def main() -> None:
-    import argparse
-    parser = argparse.ArgumentParser(description='Pre-flight token estimate for a task file')
-    parser.add_argument('task', help='Path to the task file')
-    parser.add_argument('--hostname', required=True, help='Inference node hostname')
-    parser.add_argument('--backend', default='llama-server',
-                        choices=['llama-server', 'ollama'],
-                        help='Inference backend (default: llama-server)')
-    parser.add_argument('--agent', default='hermes',
-                        help='Agent name in topology Agent State (default: hermes)')
-    parser.add_argument('--model', default='',
-                        help='Model name (required for Ollama tokenisation)')
-    parser.add_argument('--cwd', default=None,
-                        help='Base directory for resolving relative file paths in the task')
-    parser.add_argument('--write', action='store_true',
-                        help='Append the Pre-flight section to the task file')
-    args = parser.parse_args()
-
-    preflight = run_preflight(
-        task_path=args.task,
-        hostname=args.hostname,
-        backend=args.backend,
-        agent_name=args.agent,
-        model=args.model,
-        cwd=args.cwd,
-    )
-    print(preflight)
-
-    if args.write:
-        append_preflight(args.task, preflight)
-        print(f'Pre-flight section written to {args.task}', file=sys.stderr)
-
-
-if __name__ == '__main__':
-    main()

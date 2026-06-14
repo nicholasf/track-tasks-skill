@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-import argparse
 import re
-import sys
 from datetime import date
 from pathlib import Path
 
@@ -76,25 +73,3 @@ def deprecate_task(
     return dest
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description='Mark a task as deprecated')
-    parser.add_argument('task', help='Path to the task file')
-    parser.add_argument('--reason', required=True, help='Why this task is being deprecated')
-    parser.add_argument('--deprecated-by', default='', help='Slug or path of the replacing task')
-    parser.add_argument('--cwd', default=None, help='Project root (default: tasks/ grandparent)')
-    args = parser.parse_args()
-
-    task_path = Path(args.task).resolve()
-    cwd = Path(args.cwd).resolve() if args.cwd else task_path.parent.parent.parent
-
-    try:
-        dest = deprecate_task(task_path, args.reason, args.deprecated_by, cwd)
-    except (ValueError, FileNotFoundError) as error:
-        print(f'[deprecate] {error}', file=sys.stderr)
-        sys.exit(1)
-
-    print(dest)
-
-
-if __name__ == '__main__':
-    main()

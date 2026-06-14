@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-import argparse
 import re
-import sys
 from datetime import date
 from pathlib import Path
 
@@ -32,10 +29,24 @@ def _set_status(content: str, new_status: TaskState) -> str:
     )
 
 
-def _add_hallucinated_by(content: str, hallucinated_by: str) -> str:
+def _add_hallucination_metadata(
+    content: str,
+    hallucinating_agent_handle: str,
+    reporter: str,
+    reason: str,
+) -> str:
+    fields = ''
+    if hallucinating_agent_handle:
+        fields += f'**Hallucinating agent:** {hallucinating_agent_handle}\n'
+    if reporter:
+        fields += f'**Reported by:** {reporter}\n'
+    if reason:
+        fields += f'**Reason:** {reason}\n'
+    if not fields:
+        return content
     return re.sub(
         r'(\*\*Status:\*\*[^\n]*\n)',
-        f'\\1**Hallucinated by:** {hallucinated_by}\n',
+        f'\\1{fields}',
         content,
         count=1,
     )
@@ -54,9 +65,9 @@ def _fill_results(content: str, solution: str) -> str:
     )
 
 
-def _append_dev_log(dev_log_path: Path, title: str, solution: str) -> None:
+def _append_dev_log(dev_log_path: Path, title: str, reason: str) -> None:
     today = date.today().isoformat()
-    entry = f'\n## {today} — {title} (hallucinated)\n\n- {solution}\n'
+    entry = f'\n## {today} — {title} (hallucinated)\n\n- {reason}\n'
     with dev_log_path.open('a') as f:
         f.write(entry)
 
@@ -64,7 +75,9 @@ def _append_dev_log(dev_log_path: Path, title: str, solution: str) -> None:
 def mark_as_hallucinated(
     task_path: Path,
     solution: str,
-    hallucinated_by: str,
+    hallucinating_agent_handle: str,
+    reporter: str,
+    reason: str,
     cwd: Path,
 ) -> Path:
     content = task_path.read_text()
@@ -73,8 +86,7 @@ def mark_as_hallucinated(
 
     title = _read_title(content)
     content = _set_status(content, TaskState.hallucinated)
-    if hallucinated_by:
-        content = _add_hallucinated_by(content, hallucinated_by)
+    content = _add_hallucination_metadata(content, hallucinating_agent_handle, reporter, reason)
     content = _fill_results(content, solution)
 
     hallucinated_dir = cwd / 'tasks' / 'hallucinated'
@@ -85,30 +97,8 @@ def mark_as_hallucinated(
 
     dev_log_path = cwd / 'development-log.md'
     if dev_log_path.exists():
-        _append_dev_log(dev_log_path, title, solution)
+        _append_dev_log(dev_log_path, title, reason)
 
     return dest
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description='Mark a task as hallucinated')
-    parser.add_argument('task', help='Path to the task file')
-    parser.add_argument('--solution', required=True, help='The full solution the LLM claimed to have produced')
-    parser.add_argument('--hallucinated-by', default='', help='Agent or model that hallucinated this task')
-    parser.add_argument('--cwd', default=None, help='Project root (default: tasks/ grandparent)')
-    args = parser.parse_args()
-
-    task_path = Path(args.task).resolve()
-    cwd = Path(args.cwd).resolve() if args.cwd else task_path.parent.parent.parent
-
-    try:
-        dest = mark_as_hallucinated(task_path, args.solution, args.hallucinated_by, cwd)
-    except (ValueError, FileNotFoundError) as error:
-        print(f'[mark_as_hallucinated] {error}', file=sys.stderr)
-        sys.exit(1)
-
-    print(dest)
-
-
-if __name__ == '__main__':
-    main()

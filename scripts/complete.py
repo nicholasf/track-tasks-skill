@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-import argparse
 import re
-import sys
 from datetime import date
 from pathlib import Path
 
@@ -82,26 +79,3 @@ def complete_task(
     return dest
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description='Mark a task as completed')
-    parser.add_argument('task', help='Path to the task file')
-    parser.add_argument('--summary', required=True, help='What was done')
-    parser.add_argument('--tests', required=True, help='Test outcome')
-    parser.add_argument('--files-changed', required=True, help='Files changed')
-    parser.add_argument('--cwd', default=None, help='Project root (default: tasks/ grandparent)')
-    args = parser.parse_args()
-
-    task_path = Path(args.task).resolve()
-    cwd = Path(args.cwd).resolve() if args.cwd else task_path.parent.parent.parent
-
-    try:
-        dest = complete_task(task_path, args.summary, args.tests, args.files_changed, cwd)
-    except (ValueError, FileNotFoundError) as error:
-        print(f'[complete] {error}', file=sys.stderr)
-        sys.exit(1)
-
-    print(dest)
-
-
-if __name__ == '__main__':
-    main()
