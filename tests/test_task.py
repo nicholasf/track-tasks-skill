@@ -152,3 +152,10 @@ def test_render_preflight_content_embedded_directly():
     assert '## Pre-flight ⏳ L1' in output
     assert '- Spec: 500 tokens' in output
     assert output.count('## Pre-flight') == 1
+
+
+def test_render_preflight_appears_before_goal():
+    preflight_text = '## Pre-flight ⏳ L1\n\n- Spec: 500 tokens\n'
+    task = Task.model_validate({**_minimal(), 'preflight': preflight_text})
+    output = render(task)
+    assert output.index('## Pre-flight') < output.index('## Goal')
