@@ -40,6 +40,7 @@ def _slug(title: str) -> str:
 def _compute_preflight(
     task: Task,
     tokenizer: Tokenizer,
+    tokenizer_source: str,
     hostname: str,
     backend: str,
     agent_name: str,
@@ -77,6 +78,7 @@ def _compute_preflight(
         reasoning_buffer=reasoning_buffer,
         context_window=context_window,
         tok_s=tok_s,
+        source=tokenizer_source,
     )
 
 
@@ -94,7 +96,7 @@ def create_task(
     task = Task.model_validate({**task_fields, 'created': created})
 
     try:
-        preflight_text = _compute_preflight(task, tokenizer, hostname, backend, agent_name, model, cwd)
+        preflight_text = _compute_preflight(task, tokenizer, tokenizer_source, hostname, backend, agent_name, model, cwd)
         task = task.model_copy(update={'preflight': preflight_text})
     except Exception as error:
         print(f'[create] preflight failed: {error}', file=sys.stderr)

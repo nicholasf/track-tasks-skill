@@ -220,6 +220,7 @@ def build_token_estimate_section(
     reasoning_buffer: int,
     context_window: int | None,
     tok_s: float | None,
+    source: str = 'local',
 ) -> str:
     file_total = sum(file_token_counts.values())
     estimated_total = spec_tokens + file_total + reasoning_buffer
@@ -232,7 +233,7 @@ def build_token_estimate_section(
         secs = estimated_total / tok_s
         time_str = f' (~{secs:.0f}s)'
 
-    lines = [f'## Pre-flight {rating} {level}{time_str}', '']
+    lines = [f'## Pre-flight {rating} {level}{time_str} ({source})', '']
     lines.append(f'- Spec: {spec_tokens:,} tokens')
 
     if file_token_counts:
@@ -276,7 +277,7 @@ def run_token_estimate(
 
     # Remove any existing Pre-flight section before retokenising
     task_for_tokens = re.sub(
-        r'^## Pre-flight\s*\n.*?(?=^##|\Z)', '', task_text,
+        r'^## Pre-flight[^\n]*\n.*?(?=^##|\Z)', '', task_text,
         flags=re.MULTILINE | re.DOTALL,
     ).strip()
 
@@ -315,6 +316,7 @@ def run_token_estimate(
         reasoning_buffer=reasoning_buffer,
         context_window=context_window,
         tok_s=tok_s,
+        source='remote',
     )
 
 
@@ -323,9 +325,9 @@ def append_token_estimate(task_path: str, preflight_text: str) -> None:
     with open(task_path) as f:
         content = f.read()
 
-    # Remove existing Pre-flight section
+    # Remove all existing Pre-flight sections (header may include rating/level/source suffix)
     content = re.sub(
-        r'^## Pre-flight\s*\n.*?(?=^##|\Z)', '', content,
+        r'^## Pre-flight[^\n]*\n.*?(?=^##|\Z)', '', content,
         flags=re.MULTILINE | re.DOTALL,
     ).rstrip()
 
