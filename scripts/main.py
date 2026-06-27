@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -106,6 +107,29 @@ def _cmd_show(args: argparse.Namespace) -> None:
     show_mod.print_table(tasks, args.state, args.page, args.per_page, total, summary)
 
 
+def _cmd_validate(args: argparse.Namespace) -> None:
+    task_path = Path(args.task).resolve()
+    try:
+        content = task_path.read_text()
+    except FileNotFoundError:
+        print(f'[validate] task file not found: {task_path}', file=sys.stderr)
+        sys.exit(1)
+
+    if '<!-- not yet computed -->' in content:
+        print('[validate] FAIL — pre-flight has not been computed. Run estimate-tokens first.', file=sys.stderr)
+        sys.exit(1)
+
+    if 'unavailable-via-' in content or 'Preflight unavailable' in content:
+        print('[validate] FAIL — pre-flight is unavailable (tokenizer failed). Run estimate-tokens with --hostname.', file=sys.stderr)
+        sys.exit(1)
+
+    if not re.search(r'^## Pre-flight.*\(remote\)', content, re.MULTILINE):
+        print('[validate] FAIL — pre-flight was computed with the local tokenizer. Re-run estimate-tokens with --hostname to get a remote estimate.', file=sys.stderr)
+        sys.exit(1)
+
+    print(f'[validate] OK — pre-flight computed via remote tokenizer: {task_path.name}')
+
+
 def _cmd_estimate_tokens(args: argparse.Namespace) -> None:
     try:
         estimate = run_token_estimate(
@@ -184,6 +208,11 @@ def main() -> None:
                    help='Tasks per page (default: 20)')
     p.add_argument('--cwd', default=None, help='Project root directory')
     p.set_defaults(func=_cmd_show)
+
+    # ── validate ──────────────────────────────────────────────────────────────
+    p = sub.add_parser('validate', help='Check that a task has a remote pre-flight estimate before delegation')
+    p.add_argument('task', help='Path to the task file')
+    p.set_defaults(func=_cmd_validate)
 
     # ── estimate-tokens ───────────────────────────────────────────────────────
     p = sub.add_parser('estimate-tokens', help='Estimate token cost and complexity for a task')

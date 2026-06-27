@@ -12,6 +12,19 @@ This skill is part of a small ecosystem:
 
 ---
 
+## Subcommands
+
+| Subcommand | Description |
+|---|---|
+| `create` | Write a new task file to `tasks/pending/` with a pre-flight token estimate |
+| `complete` | Move a task to `tasks/completed/` and record a summary in `development-log.md` |
+| `deprecate` | Move a task to `tasks/deprecated/` when it is superseded before completion |
+| `mark-as-hallucinated` | Move a task to `tasks/hallucinated/` when the executing LLM claimed completion but produced no real output |
+| `show` | Print a summary table of tasks in a given state (`pending`, `completed`, `deprecated`, `hallucinated`) |
+| `estimate-tokens` | Count token cost across the task spec and referenced files, rate complexity, and estimate duration |
+
+---
+
 ## Examples
 
 ```
@@ -128,7 +141,16 @@ The duration estimate comes from `estimated_total ÷ tok/s`, where throughput is
 | `deprecated` | `tasks/deprecated/` | Superseded before completion |
 | `hallucinated` | `tasks/hallucinated/` | The executing LLM claimed to complete the task but produced no real output |
 
-Tasks marked `hallucinated` preserve the full solution the LLM reported, the agent handle that produced it, the agent handle that caught it, and the reason it was judged a hallucination — so patterns can be analysed later.
+A task is marked `hallucinated` when the executing LLM reports that it completed the work — describing changes, tests, and results — but no actual output exists: no files written, no diff produced, no tests run. The remote agent may return a confident, detailed summary that is entirely fabricated.
+
+The `mark-as-hallucinated` subcommand moves the task to `tasks/hallucinated/` and records:
+
+- the full solution text the LLM claimed to produce
+- the agent handle that produced the hallucination
+- the agent handle that caught and reported it
+- the reason it was judged a hallucination
+
+This preserves evidence for later analysis of which agent handles, models, or task shapes are most prone to hallucination.
 
 ---
 

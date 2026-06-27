@@ -334,7 +334,7 @@ def test_build_preflight_header_includes_time():
 def test_build_preflight_header_no_time_when_no_tok_s():
     text = build_token_estimate_section(500, {}, 12000, 65536, None)
     first_line = text.splitlines()[0]
-    assert first_line == '## Pre-flight ⏳ L1'
+    assert first_line == '## Pre-flight ⏳ L1 (local)'
 
 
 def test_build_preflight_l2_two_hourglasses_in_header():
