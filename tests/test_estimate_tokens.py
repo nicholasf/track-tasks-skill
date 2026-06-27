@@ -382,6 +382,19 @@ One sentence.
 - [ ] Tests pass
 """
 
+TASK_WITH_STATUS = """\
+# My Task
+
+**Created:** 2026-06-27
+**Status:** pending
+
+## Goal
+One sentence.
+
+## Done when
+- [ ] Tests pass
+"""
+
 
 def test_append_token_estimate_adds_section(tmp_path):
     task = tmp_path / 'task.md'
@@ -409,3 +422,15 @@ def test_append_token_estimate_preserves_rest_of_task(tmp_path):
     content = task.read_text()
     assert '## Done when' in content
     assert '## Goal' in content
+
+
+def test_append_token_estimate_inserts_after_status(tmp_path):
+    task = tmp_path / 'task.md'
+    task.write_text(TASK_WITH_STATUS)
+    append_token_estimate(str(task), '## Pre-flight\n\n- Spec: 100 tokens\n')
+    content = task.read_text()
+    status_pos = content.index('**Status:**')
+    preflight_pos = content.index('## Pre-flight')
+    goal_pos = content.index('## Goal')
+    assert preflight_pos > status_pos
+    assert preflight_pos < goal_pos

@@ -321,7 +321,7 @@ def run_token_estimate(
 
 
 def append_token_estimate(task_path: str, preflight_text: str) -> None:
-    """Replace or append the ## Pre-flight section in the task file."""
+    """Replace or insert the ## Pre-flight section after **Status:** in the task file."""
     with open(task_path) as f:
         content = f.read()
 
@@ -331,7 +331,18 @@ def append_token_estimate(task_path: str, preflight_text: str) -> None:
         flags=re.MULTILINE | re.DOTALL,
     ).rstrip()
 
+    # Insert after **Status:** line if present, before the next section
+    status_match = re.search(r'^\*\*Status:\*\*[^\n]*', content, re.MULTILINE)
+    if status_match:
+        insert_pos = status_match.end()
+        rest = content[insert_pos:].lstrip('\n')
+        content = content[:insert_pos] + f'\n\n{preflight_text}\n' + rest
+    elif '\n## Results' in content:
+        content = content.replace('\n## Results', f'\n\n{preflight_text}\n## Results', 1)
+    else:
+        content = content + '\n\n' + preflight_text
+
     with open(task_path, 'w') as f:
-        f.write(content + '\n\n' + preflight_text)
+        f.write(content)
 
 
