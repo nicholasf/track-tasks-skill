@@ -29,6 +29,8 @@ def render(task: Task) -> str:
         '',
     ]
 
+    _render_preflight(parts, task.preflight)
+
     _section(parts, 'Goal', task.goal)
 
     if task.background:
@@ -56,8 +58,6 @@ def render(task: Task) -> str:
         parts += ['## Done when', '']
         parts += [f'- [ ] {d}' for d in task.done_when]
         parts.append('')
-
-    _render_preflight(parts, task.preflight)
 
     parts += [
         '## Results',
