@@ -1,57 +1,30 @@
 import pytest
 from pathlib import Path
 
-from mark_as_hallucinated import mark_as_hallucinated, _read_status, _add_hallucination_metadata
+from mark_as_hallucinated import mark_as_hallucinated
+from task import Task, from_toml, to_toml
 from workflow import TaskState
 
 
 def _make_task_file(tmp_path: Path, status: str = 'pending') -> Path:
     pending_dir = tmp_path / 'tasks' / 'pending'
     pending_dir.mkdir(parents=True)
-    task_file = pending_dir / '2026-06-14T00-00-00-test-task.md'
-    task_file.write_text(
-        f'# Test Task\n\n'
-        f'**Created:** 2026-06-14\n'
-        f'**Model:** qwen3-coder-30b\n'
-        f'**Agent:** `pond-qwen-hermes`\n'
-        f'**Status:** {status}\n\n'
-        f'## Goal\n\nDo a thing.\n\n'
-        f'## Results\n'
-        f'<!-- Filled in by the executing model after completion -->\n'
-        f'**Tests:**\n'
-        f'**Files changed:**\n'
-        f'**Summary:**\n'
-    )
+    task_file = pending_dir / '2026-06-14T00-00-00-test-task.toml'
+    task = Task.model_validate({
+        'title': 'Test Task',
+        'goal': 'Do a thing.',
+        'model': 'qwen3-coder-30b',
+        'agent': 'pond-qwen-hermes',
+        'created': '2026-06-14',
+        'status': status,
+    })
+    task_file.write_text(to_toml(task))
     return task_file
 
 
 def _call(tmp_path, task_file, **kwargs):
     defaults = dict(solution='Claimed solution', hallucinating_agent_handle='', reporter='', reason='')
     return mark_as_hallucinated(task_file, cwd=tmp_path, **{**defaults, **kwargs})
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-def test_read_status_treats_planned_as_pending():
-    assert _read_status('**Status:** planned') == TaskState.pending
-
-
-def test_add_hallucination_metadata_inserts_after_status():
-    content = '**Status:** hallucinated\n## Goal\n'
-    result = _add_hallucination_metadata(content, 'pond-qwen3', 'pond-reviewer', 'No files changed')
-    lines = result.splitlines()
-    status_index = next(i for i, l in enumerate(lines) if '**Status:**' in l)
-    assert '**Hallucinating agent:**' in lines[status_index + 1]
-    assert '**Reported by:**' in lines[status_index + 2]
-    assert '**Reason:**' in lines[status_index + 3]
-
-
-def test_add_hallucination_metadata_omits_empty_fields():
-    content = '**Status:** hallucinated\n## Goal\n'
-    result = _add_hallucination_metadata(content, '', '', '')
-    assert '**Hallucinating agent:**' not in result
-    assert '**Reported by:**' not in result
-    assert '**Reason:**' not in result
 
 
 # ── mark_as_hallucinated ──────────────────────────────────────────────────────
@@ -67,42 +40,40 @@ def test_moves_file_to_hallucinated_dir(tmp_path):
 def test_updates_status(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = _call(tmp_path, task_file)
-    assert '**Status:** hallucinated' in dest.read_text()
+    assert from_toml(dest.read_text()).status == TaskState.hallucinated
 
 
 def test_fills_results_with_solution(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = _call(tmp_path, task_file, solution='The full claimed solution text')
-    content = dest.read_text()
-    assert 'The full claimed solution text' in content
-    assert '**Hallucinated solution:**' in content
+    assert from_toml(dest.read_text()).results['hallucinated_solution'] == 'The full claimed solution text'
 
 
 def test_records_hallucinating_agent_handle(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = _call(tmp_path, task_file, hallucinating_agent_handle='pond-qwen3')
-    assert '**Hallucinating agent:** pond-qwen3' in dest.read_text()
+    assert from_toml(dest.read_text()).hallucinating_agent == 'pond-qwen3'
 
 
 def test_records_reporter(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = _call(tmp_path, task_file, reporter='pond-reviewer')
-    assert '**Reported by:** pond-reviewer' in dest.read_text()
+    assert from_toml(dest.read_text()).hallucination_reporter == 'pond-reviewer'
 
 
 def test_records_reason(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = _call(tmp_path, task_file, reason='No files were actually changed')
-    assert '**Reason:** No files were actually changed' in dest.read_text()
+    assert from_toml(dest.read_text()).hallucination_reason == 'No files were actually changed'
 
 
 def test_omits_fields_when_empty(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = _call(tmp_path, task_file)
-    content = dest.read_text()
-    assert '**Hallucinating agent:**' not in content
-    assert '**Reported by:**' not in content
-    assert '**Reason:**' not in content
+    task = from_toml(dest.read_text())
+    assert task.hallucinating_agent == ''
+    assert task.hallucination_reporter == ''
+    assert task.hallucination_reason == ''
 
 
 def test_preserves_filename(tmp_path):

@@ -5,7 +5,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from task import Task, render
+from task import Task, render, to_toml
 from tokenizer import Tokenizer
 from tokenizer_local import LocalTokenizer
 from tokenizer_remote import RemoteTokenizer
@@ -104,10 +104,10 @@ def create_task(
 
     timestamp = datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
     slug = _slug(task.title)
-    filename = f'{timestamp}-{slug}.md'
+    filename = f'{timestamp}-{slug}.toml'
     task_path = Path(cwd) / 'tasks' / 'pending' / filename
     task_path.parent.mkdir(parents=True, exist_ok=True)
-    task_path.write_text(render(task))
+    task_path.write_text(to_toml(task))
     return task_path
 
 

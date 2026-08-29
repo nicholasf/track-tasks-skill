@@ -1,78 +1,25 @@
 import pytest
 from pathlib import Path
 
-from complete import complete_task, _read_status, _read_title, _set_status, _fill_results
+from complete import complete_task
+from task import Task, from_toml, to_toml
 from workflow import TaskState
 
 
 def _make_task_file(tmp_path: Path, status: str = 'in_progress') -> Path:
     pending_dir = tmp_path / 'tasks' / 'pending'
     pending_dir.mkdir(parents=True)
-    task_file = pending_dir / '2026-06-13T00-00-00-test-task.md'
-    task_file.write_text(
-        f'# Test Task\n\n'
-        f'**Created:** 2026-06-13\n'
-        f'**Model:** qwen3-coder-30b\n'
-        f'**Agent:** `pond-qwen-hermes`\n'
-        f'**Status:** {status}\n\n'
-        f'## Goal\n\nDo a thing.\n\n'
-        f'## Results\n'
-        f'<!-- Filled in by the executing model after completion -->\n'
-        f'**Tests:**\n'
-        f'**Files changed:**\n'
-        f'**Summary:**\n'
-    )
+    task_file = pending_dir / '2026-06-13T00-00-00-test-task.toml'
+    task = Task.model_validate({
+        'title': 'Test Task',
+        'goal': 'Do a thing.',
+        'model': 'qwen3-coder-30b',
+        'agent': 'pond-qwen-hermes',
+        'created': '2026-06-13',
+        'status': status,
+    })
+    task_file.write_text(to_toml(task))
     return task_file
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-def test_read_status_pending():
-    assert _read_status('**Status:** pending') == TaskState.pending
-
-
-def test_read_status_treats_planned_as_pending():
-    assert _read_status('**Status:** planned') == TaskState.pending
-
-
-def test_read_status_in_progress():
-    assert _read_status('**Status:** in_progress') == TaskState.in_progress
-
-
-def test_read_status_missing_raises():
-    with pytest.raises(ValueError, match=r'No \*\*Status'):
-        _read_status('no status here')
-
-
-def test_read_title_extracts_h1():
-    assert _read_title('# My Task\n\n**Status:** pending') == 'My Task'
-
-
-def test_read_title_returns_untitled_when_absent():
-    assert _read_title('**Status:** pending') == 'Untitled'
-
-
-def test_set_status_replaces_line():
-    content = '**Status:** pending\n'
-    result = _set_status(content, TaskState.completed)
-    assert '**Status:** completed' in result
-    assert 'pending' not in result
-
-
-def test_fill_results_replaces_entire_section():
-    content = (
-        '## Goal\n\nDo a thing.\n\n'
-        '## Results\n'
-        '<!-- Filled in by the executing model after completion -->\n'
-        '**Tests:**\n'
-        '**Files changed:**\n'
-        '**Summary:**\n'
-    )
-    result = _fill_results(content, 'It worked', '5 pass', 'foo.py')
-    assert '**Summary:** It worked' in result
-    assert '**Tests:** 5 pass' in result
-    assert '**Files changed:** foo.py' in result
-    assert '<!-- Filled in' not in result
 
 
 # ── complete_task ─────────────────────────────────────────────────────────────
@@ -88,16 +35,16 @@ def test_complete_task_moves_file_to_completed(tmp_path):
 def test_complete_task_updates_status(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = complete_task(task_file, 'Done', 'pass', 'task.py', tmp_path)
-    assert '**Status:** completed' in dest.read_text()
+    assert from_toml(dest.read_text()).status == TaskState.completed
 
 
 def test_complete_task_fills_results_section(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = complete_task(task_file, 'All done', '5 pass', 'foo.py', tmp_path)
-    content = dest.read_text()
-    assert '**Summary:** All done' in content
-    assert '**Tests:** 5 pass' in content
-    assert '**Files changed:** foo.py' in content
+    results = from_toml(dest.read_text()).results
+    assert results['summary'] == 'All done'
+    assert results['tests'] == '5 pass'
+    assert results['files_changed'] == 'foo.py'
 
 
 def test_complete_task_preserves_filename(tmp_path):

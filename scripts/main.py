@@ -92,7 +92,7 @@ def _cmd_show(args: argparse.Namespace) -> None:
         print(f'Directory not found: {task_dir}', file=_sys.stderr)
         _sys.exit(1)
 
-    files = sorted(task_dir.glob('*.md'))
+    files = sorted(task_dir.glob('*.toml'))
     total = len(files)
     start = (args.page - 1) * args.per_page
     page_files = files[start: start + args.per_page]

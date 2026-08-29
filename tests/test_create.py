@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from create import _slug, create_task
-from task import Task, render
 
 
 @pytest.fixture(autouse=True)
@@ -101,7 +100,7 @@ def test_create_task_file_contains_title(tmp_path):
         model='',
         cwd=str(tmp_path),
     )
-    assert '# Add logging to gate' in path.read_text()
+    assert 'title = "Add logging to gate"' in path.read_text()
 
 
 def test_create_task_file_has_preflight_section(tmp_path):
@@ -150,7 +149,7 @@ def test_create_task_unavailable_label_on_tokenizer_failure(tmp_path):
         model='',
         cwd=str(tmp_path),
     )
-    assert 'local tokenizer failed' in path.read_text()
+    assert 'unavailable-via-local' in path.read_text()
 
 
 def test_create_task_invalid_fields_raises(tmp_path):

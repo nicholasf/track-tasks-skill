@@ -6,26 +6,20 @@ Usage:
   show.py [pending|completed|deprecated] [--page N] [--per-page N] [--cwd DIR]
 """
 
-import os
 import re
 from datetime import date, datetime
 from pathlib import Path
 
+from task import from_toml
+
 
 def parse_task(path: Path) -> dict:
     try:
-        text = path.read_text()
+        task = from_toml(path.read_text())
     except OSError:
         return {}
 
-    title_m = re.search(r'^# (.+)$', text, re.MULTILINE)
-    title = title_m.group(1).strip() if title_m else '(no title)'
-
-    status_m = re.search(r'^\*\*Status:\*\*\s*(.+)$', text, re.MULTILINE)
-    status = status_m.group(1).strip() if status_m else '—'
-
-    created_m = re.search(r'^\*\*Created:\*\*\s*(.+)$', text, re.MULTILINE)
-    created_raw = created_m.group(1).strip() if created_m else '—'
+    created_raw = task.created or '—'
     # Normalise to YYYY-MM-DD; fall back to timestamp prefix in filename
     date_m = re.match(r'(\d{4}-\d{2}-\d{2})', created_raw)
     if date_m:
@@ -34,14 +28,12 @@ def parse_task(path: Path) -> dict:
         ts_m = re.match(r'(\d{4}-\d{2}-\d{2})', path.stem)
         created = ts_m.group(1) if ts_m else '—'
 
-    model_m = re.search(r'^\*\*Model:\*\*\s*(.+)$', text, re.MULTILINE)
-    model_full = model_m.group(1).strip() if model_m else '—'
     # Keep just the model name — strip everything after " on " or " — "
-    model = re.split(r'\s+(?:on|—)\s+', model_full)[0].strip()
+    model = re.split(r'\s+(?:on|—)\s+', task.model)[0].strip() if task.model else '—'
 
     return {
-        'title': title,
-        'status': status,
+        'title': task.title or '(no title)',
+        'status': str(task.status) if task.status else '—',
         'created': created,
         'model': model,
     }
@@ -56,7 +48,7 @@ def closed_summary(root: Path) -> str:
         bucket_dir = root / 'tasks' / bucket
         if not bucket_dir.exists():
             continue
-        for path in bucket_dir.glob('*.md'):
+        for path in bucket_dir.glob('*.toml'):
             counts[bucket] += 1
             task = parse_task(path)
             created = task.get('created', '—')

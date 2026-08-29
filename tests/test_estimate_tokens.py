@@ -13,70 +13,13 @@ from estimate_tokens import (
     build_token_estimate_section,
     complexity_level,
     difficulty_rating,
-    parse_files_to_read,
-    parse_model_field,
     read_topology_context_window,
     read_topology_reasoning_buffer,
     read_topology_tok_s,
     tokenize_llama,
     tokenize_ollama,
 )
-
-
-# ── parse_model_field ─────────────────────────────────────────────────────────
-
-def test_parse_model_field_extracts_value():
-    text = '**Model:** pond-qwen-hermes — mechanical rename\n'
-    assert parse_model_field(text) == 'pond-qwen-hermes — mechanical rename'
-
-
-def test_parse_model_field_returns_none_when_absent():
-    assert parse_model_field('# Task\n\nNo model field here.\n') is None
-
-
-def test_parse_model_field_trims_whitespace():
-    text = '**Model:**   qwen3-coder-30b   \n'
-    assert parse_model_field(text) == 'qwen3-coder-30b'
-
-
-# ── parse_files_to_read ───────────────────────────────────────────────────────
-
-TASK_WITH_FILES = """\
-# My Task
-
-**Model:** pond-qwen-hermes
-
-## Files to read before starting
-- src/schema.sql
-- migrations/000001.up.sql
-- README.md
-
-## Goal
-Do the thing.
-"""
-
-TASK_NO_FILES_SECTION = """\
-# My Task
-
-**Model:** pond-qwen-hermes
-
-## Goal
-Do the thing.
-"""
-
-
-def test_parse_files_to_read_extracts_paths():
-    paths = parse_files_to_read(TASK_WITH_FILES)
-    assert paths == ['src/schema.sql', 'migrations/000001.up.sql', 'README.md']
-
-
-def test_parse_files_to_read_empty_when_section_absent():
-    assert parse_files_to_read(TASK_NO_FILES_SECTION) == []
-
-
-def test_parse_files_to_read_empty_when_section_empty():
-    text = '## Files to read before starting\n\n## Goal\n'
-    assert parse_files_to_read(text) == []
+from task import Task, from_toml, to_toml
 
 
 # ── complexity_level ──────────────────────────────────────────────────────────
@@ -371,84 +314,38 @@ def test_build_preflight_l3_three_hourglasses_in_header():
 
 # ── append_token_estimate ──────────────────────────────────────────────────────────
 
-TASK_TEXT = """\
-# My Task
-
-**Model:** pond-qwen-hermes
-
-## Goal
-One sentence.
-
-## Done when
-- [ ] Tests pass
-"""
-
-TASK_WITH_EXISTING_PREFLIGHT = """\
-# My Task
-
-**Model:** pond-qwen-hermes
-
-## Goal
-One sentence.
-
-## Pre-flight
-
-- Spec: 100 tokens
-- Complexity: L1
-
-## Done when
-- [ ] Tests pass
-"""
-
-TASK_WITH_STATUS = """\
-# My Task
-
-**Created:** 2026-06-27
-**Status:** pending
-
-## Goal
-One sentence.
-
-## Done when
-- [ ] Tests pass
-"""
+def _write_task_toml(path, **overrides):
+    fields = {
+        'title': 'My Task', 'goal': 'One sentence.', 'model': 'pond-qwen-hermes',
+        'agent': 'hermes', 'done_when': ['Tests pass'],
+    }
+    fields.update(overrides)
+    path.write_text(to_toml(Task.model_validate(fields)))
 
 
-def test_append_token_estimate_adds_section(tmp_path):
-    task = tmp_path / 'task.md'
-    task.write_text(TASK_TEXT)
+def test_append_token_estimate_adds_preflight(tmp_path):
+    task = tmp_path / 'task.toml'
+    _write_task_toml(task)
     append_token_estimate(str(task), '## Pre-flight\n\n- Spec: 100 tokens\n')
-    content = task.read_text()
-    assert '## Pre-flight' in content
-    assert '100 tokens' in content
+    result = from_toml(task.read_text())
+    assert '100 tokens' in result.preflight
 
 
-def test_append_token_estimate_replaces_existing_section(tmp_path):
-    task = tmp_path / 'task.md'
-    task.write_text(TASK_WITH_EXISTING_PREFLIGHT)
+def test_append_token_estimate_replaces_existing_preflight(tmp_path):
+    task = tmp_path / 'task.toml'
+    _write_task_toml(task, preflight='## Pre-flight\n\n- Spec: 100 tokens\n- Complexity: L1\n')
     append_token_estimate(str(task), '## Pre-flight\n\n- Spec: 999 tokens\n')
-    content = task.read_text()
-    assert '999 tokens' in content
-    assert '100 tokens' not in content
-    assert content.count('## Pre-flight') == 1
+    result = from_toml(task.read_text())
+    assert '999 tokens' in result.preflight
+    assert '100 tokens' not in result.preflight
 
 
 def test_append_token_estimate_preserves_rest_of_task(tmp_path):
-    task = tmp_path / 'task.md'
-    task.write_text(TASK_TEXT)
+    task = tmp_path / 'task.toml'
+    _write_task_toml(task, status='pending', created='2026-06-27')
     append_token_estimate(str(task), '## Pre-flight\n\n- Spec: 100 tokens\n')
-    content = task.read_text()
-    assert '## Done when' in content
-    assert '## Goal' in content
-
-
-def test_append_token_estimate_inserts_after_status(tmp_path):
-    task = tmp_path / 'task.md'
-    task.write_text(TASK_WITH_STATUS)
-    append_token_estimate(str(task), '## Pre-flight\n\n- Spec: 100 tokens\n')
-    content = task.read_text()
-    status_pos = content.index('**Status:**')
-    preflight_pos = content.index('## Pre-flight')
-    goal_pos = content.index('## Goal')
-    assert preflight_pos > status_pos
-    assert preflight_pos < goal_pos
+    result = from_toml(task.read_text())
+    assert result.goal == 'One sentence.'
+    assert result.done_when == ['Tests pass']
+    assert result.status == 'pending'
+    assert result.created == '2026-06-27'

@@ -1,6 +1,6 @@
 # track-tasks-skill
 
-Manage units of work as structured Markdown files. Tasks live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. Programme tasks group related sub-tasks for larger workloads.
+Manage units of work as structured TOML files — a typed `Task` model round-trips end to end, so nothing is ever parsed back out of prose. Tasks live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. Programme tasks group related sub-tasks for larger workloads.
 
 This skill is part of a small ecosystem:
 
@@ -61,7 +61,7 @@ Before sending a task to a remote node, run the `estimate-time` subcommand with 
 ```
 
 ```
-/track-tasks estimate-time tasks/pending/2026-06-08T10-00-00-auth-refactor.md
+/track-tasks estimate-time tasks/pending/2026-06-08T10-00-00-auth-refactor.toml
 ```
 
 The response shows a difficulty rating and estimated duration:
@@ -84,7 +84,7 @@ what tasks are pending
 review the results of the auth refactor task
 ```
 
-The local agent reads the `## Results` section filled in by the remote model, runs the acceptance commands, and presents a summary — without reading every changed file (which would spend the tokens that delegation was meant to save).
+The local agent reads the `results` field filled in by the remote model, runs the acceptance commands, and presents a summary — without reading every changed file (which would spend the tokens that delegation was meant to save).
 
 ---
 
@@ -95,7 +95,7 @@ A task file is a specification written before execution. The local agent writes 
 1. A task file is written to `tasks/pending/` with a goal, changes, and acceptance criteria.
 2. **Estimate time** rates the task's token cost and difficulty before it is sent.
 3. The task is sent to a remote agent handle (e.g. `pond-qwen-hermes`) via [ask-remote-agent](https://github.com/nicholasf/ask-remote-agent-skill).
-4. The remote agent executes the task, fills in `## Results`, and the local agent reviews the **git diff**.
+4. The remote agent executes the task, fills in `results`, and the local agent reviews the **git diff**.
 5. Once confirmed, the task moves to `tasks/completed/` and an entry is added to `development-log.md`.
 
 **Token economy:** local LLM inference is effectively free; cloud model tokens are not. The pattern is: cloud model designs and reviews, local model executes.
