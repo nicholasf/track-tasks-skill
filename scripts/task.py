@@ -1,8 +1,16 @@
 import tomllib
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 from workflow import TaskState
+
+
+class ExecutionMode(StrEnum):
+    ask_llm = 'ask_llm'
+    ask_agent = 'ask_agent'
+    local = 'local'
+    local_worktree = 'local_worktree'
 
 
 class Task(BaseModel):
@@ -24,6 +32,9 @@ class Task(BaseModel):
     hallucinating_agent: str = ''
     hallucination_reporter: str = ''
     hallucination_reason: str = ''
+    execution_mode: ExecutionMode = ExecutionMode.local
+    worktree_path: str = ''
+    worktree_branch: str = ''
 
 
 def _format_toml_value(value) -> str:

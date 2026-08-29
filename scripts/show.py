@@ -36,6 +36,7 @@ def parse_task(path: Path) -> dict:
         'status': str(task.status) if task.status else '—',
         'created': created,
         'model': model,
+        'mode': str(task.execution_mode),
     }
 
 
@@ -90,6 +91,7 @@ def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: 
     w_num = max(1, len(str(total)))
     w_created = 10
     w_status = max(6, max(len(t['status']) for t in tasks))
+    w_mode = max(4, max(len(t['mode']) for t in tasks))
     w_model = min(30, max(5, max(len(t['model']) for t in tasks)))
     w_title = 55
 
@@ -98,6 +100,7 @@ def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: 
         f"{'Created':<{w_created}}  "
         f"{'Title':<{w_title}}  "
         f"{'Status':<{w_status}}  "
+        f"{'Mode':<{w_mode}}  "
         f"{'Model':<{w_model}}"
     )
     sep = '  '.join([
@@ -105,6 +108,7 @@ def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: 
         '-' * w_created,
         '-' * w_title,
         '-' * w_status,
+        '-' * w_mode,
         '-' * w_model,
     ])
 
@@ -120,6 +124,7 @@ def print_table(tasks: list[dict], state: str, page: int, per_page: int, total: 
             f"{t['created']:<{w_created}}  "
             f"{truncate(t['title'], w_title):<{w_title}}  "
             f"{t['status']:<{w_status}}  "
+            f"{t['mode']:<{w_mode}}  "
             f"{truncate(t['model'], w_model):<{w_model}}"
         )
         print(f'  {row}')

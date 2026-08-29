@@ -10,6 +10,8 @@ from create import select_tokenizer, create_task
 from complete import complete_task
 from deprecate import deprecate_task
 from mark_as_hallucinated import mark_as_hallucinated
+from start import start_task
+from task import ExecutionMode, from_toml
 from estimate_tokens import run_token_estimate, append_token_estimate
 
 
@@ -50,6 +52,20 @@ def _cmd_complete(args: argparse.Namespace) -> None:
         dest = complete_task(task_path, args.summary, args.tests, args.files_changed, cwd)
     except (ValueError, FileNotFoundError) as error:
         print(f'[complete] {error}', file=sys.stderr)
+        sys.exit(1)
+    task = from_toml(dest.read_text())
+    if task.execution_mode == ExecutionMode.local_worktree and task.worktree_path:
+        print(f'[complete] worktree not removed — clean up manually: git worktree remove {task.worktree_path}', file=sys.stderr)
+    print(dest)
+
+
+def _cmd_start(args: argparse.Namespace) -> None:
+    task_path = Path(args.task).resolve()
+    cwd = Path(args.cwd).resolve() if args.cwd else task_path.parent.parent.parent
+    try:
+        dest = start_task(task_path, ExecutionMode(args.mode), args.worktree_path, args.branch, cwd)
+    except (ValueError, RuntimeError, FileNotFoundError) as error:
+        print(f'[start] {error}', file=sys.stderr)
         sys.exit(1)
     print(dest)
 
@@ -176,6 +192,17 @@ def main() -> None:
     p.add_argument('--files-changed', required=True, dest='files_changed', help='Files changed')
     p.add_argument('--cwd', default=None, help='Project root')
     p.set_defaults(func=_cmd_complete)
+
+    # ── start ─────────────────────────────────────────────────────────────────
+    p = sub.add_parser('start', help='Transition a task to in_progress and record how it is being executed')
+    p.add_argument('task', help='Path to the task file')
+    p.add_argument('--mode', required=True, choices=[m.value for m in ExecutionMode],
+                   help='Execution mode: ask_llm, ask_agent, local, or local_worktree')
+    p.add_argument('--worktree-path', default='', dest='worktree_path',
+                   help='Path for the new git worktree (required for --mode local_worktree)')
+    p.add_argument('--branch', default='', help='Branch name for the new git worktree (required for --mode local_worktree)')
+    p.add_argument('--cwd', default=None, help='Project root (git repo root for worktree creation)')
+    p.set_defaults(func=_cmd_start)
 
     # ── deprecate ─────────────────────────────────────────────────────────────
     p = sub.add_parser('deprecate', help='Mark a task as deprecated')

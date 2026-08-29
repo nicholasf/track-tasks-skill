@@ -17,6 +17,7 @@ This skill is part of a small ecosystem:
 | Subcommand | Description |
 |---|---|
 | `create` | Write a new task file to `tasks/pending/` with a pre-flight token estimate |
+| `start` | Transition a task to `in_progress` and record its execution mode (see [Execution modes](#execution-modes)) |
 | `complete` | Move a task to `tasks/completed/` and record a summary in `development-log.md` |
 | `deprecate` | Move a task to `tasks/deprecated/` when it is superseded before completion |
 | `mark-as-hallucinated` | Move a task to `tasks/hallucinated/` when the executing LLM claimed completion but produced no real output |
@@ -99,6 +100,32 @@ A task file is a specification written before execution. The local agent writes 
 5. Once confirmed, the task moves to `tasks/completed/` and an entry is added to `development-log.md`.
 
 **Token economy:** local LLM inference is effectively free; cloud model tokens are not. The pattern is: cloud model designs and reviews, local model executes.
+
+---
+
+## Execution modes
+
+A task's `execution_mode` field records how it's actually being worked on — set via `start`, which also transitions the task to `in_progress`:
+
+| Mode | How it runs |
+|---|---|
+| `ask_llm` | Bridge mode via [ask-remote-llm](https://github.com/nicholasf/ask-remote-llm-skill) — shared tools, no independent git checkout |
+| `ask_agent` | Autonomous runtime via [ask-remote-agent](https://github.com/nicholasf/ask-remote-agent-skill) on a remote node, using its own git checkout |
+| `local` | The current/local agent executes it directly (default) |
+| `local_worktree` | Another local agent works in its own `git worktree`, so several agents can work on independent branches of the same repo at once |
+
+```
+main.py start tasks/pending/<task>.toml --mode local_worktree \
+  --worktree-path ../wt-add-logging --branch task/add-logging
+```
+
+For `local_worktree`, `start` runs `git worktree add <path> -b <branch>` and records the path and
+branch on the task. It only creates the worktree — launching the agent that works in it is up to
+whatever orchestrator is running (e.g. an `Agent` tool with worktree isolation), the same way
+`start`ing `ask_llm`/`ask_agent` modes doesn't itself invoke those skills. Completing or
+deprecating a task does **not** remove its worktree automatically — `complete` prints a reminder
+(`git worktree remove <path>`) so it isn't silently forgotten. `show` includes a `Mode` column so
+you can see what's running where across many concurrent tasks.
 
 ---
 

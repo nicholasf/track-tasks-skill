@@ -257,6 +257,28 @@ L3 tasks should be broken into a programme task with sub-tasks before delegation
 
 ---
 
+## Starting a task
+
+Before delegating, run `start` to transition the task to `in_progress` and record how it's
+being executed — this is what `show`'s `Mode` column reflects, so it's how you tell what's
+running where when several agents are working at once.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  start tasks/pending/<timestamp>-<slug>.toml \
+  --mode {ask_llm|ask_agent|local|local_worktree} \
+  [--worktree-path <path> --branch <name>] \
+  --cwd "$(pwd)"
+```
+
+`--worktree-path`/`--branch` are only required for `--mode local_worktree`; `start` runs
+`git worktree add <path> -b <branch>` and records both on the task. It only creates the
+worktree — it does not launch an agent inside it. When orchestrating from Claude Code, that
+means using the `Agent` tool with worktree isolation pointed at the same path afterward; other
+hosts use whatever their own equivalent is. `complete`/`deprecate` do not remove the worktree
+automatically — `complete` prints a `git worktree remove` reminder instead.
+
 ## Delegating to an LLM node
 
 Use ask-foreign-agent in bridge mode. The remote agent has tools to read the local filesystem directly — pass the task file path in the message rather than embedding its contents.

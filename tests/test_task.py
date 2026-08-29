@@ -1,5 +1,5 @@
 import pytest
-from task import Task, from_toml, render, to_toml
+from task import ExecutionMode, Task, from_toml, render, to_toml
 
 
 def _minimal() -> dict:
@@ -38,6 +38,9 @@ def test_task_defaults():
     assert task.recommended_approach == ''
     assert task.done_when == []
     assert task.preflight == ''
+    assert task.execution_mode == ExecutionMode.local
+    assert task.worktree_path == ''
+    assert task.worktree_branch == ''
 
 
 # ── render structure ──────────────────────────────────────────────────────────
@@ -188,6 +191,20 @@ def test_to_toml_roundtrip_status_enum():
     task = Task.model_validate({**_minimal(), 'status': 'completed'})
     roundtripped = from_toml(to_toml(task))
     assert roundtripped.status == 'completed'
+    assert roundtripped == task
+
+
+def test_to_toml_roundtrip_execution_mode_and_worktree_fields():
+    task = Task.model_validate({
+        **_minimal(),
+        'execution_mode': 'local_worktree',
+        'worktree_path': '../wt-add-logging',
+        'worktree_branch': 'task/add-logging',
+    })
+    roundtripped = from_toml(to_toml(task))
+    assert roundtripped.execution_mode == ExecutionMode.local_worktree
+    assert roundtripped.worktree_path == '../wt-add-logging'
+    assert roundtripped.worktree_branch == 'task/add-logging'
     assert roundtripped == task
 
 
