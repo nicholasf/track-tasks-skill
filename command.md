@@ -4,8 +4,8 @@ Tasks are Markdown files that capture a unit of work before it begins. They live
 
 ## Dependencies
 
-- [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — provides `context_window` (from `## Model State`) and `tok/s` (from `## LLM Benchmarks`) used in time estimation
-- [ask-remote-agent-skill](https://github.com/nicholasf/ask-remote-agent-skill) — provides `reasoning_buffer` (from `## Agent State`) and is the delegation mechanism for agent-runtime targets (Hermes, Goose)
+- [load-topology-skill](https://github.com/nicholasf/load-topology-skill) — provides `context_window` (from `model_state`) and `tok/s` (from `benchmarks`) used in time estimation
+- [ask-remote-agent-skill](https://github.com/nicholasf/ask-remote-agent-skill) — provides `reasoning_buffer` (from `agent_state`) and is the delegation mechanism for agent-runtime targets (Hermes, Goose)
 - [ask-remote-llm-skill](https://github.com/nicholasf/ask-remote-llm-skill) — provides the tokenisation endpoint (`/tokenize` for llama-server, `/api/tokenize` for Ollama) used in time estimation; also used for direct LLM delegation without an agent runtime
 
 ## When to create a task
@@ -23,11 +23,11 @@ Every task file must include a `model` field specifying which model should execu
 
 **Token economisation:** A key reason to delegate a task to a local LLM node is to avoid spending cloud API tokens on work that does not require high-level reasoning. Cloud model tokens are expensive; local model inference is effectively free. The orchestrating agent should design the task precisely and hand off execution to a cheaper model, reserving its own involvement for architecture, ambiguous decisions, and review.
 
-**If a `topology.md` file exists in the project root, read it before assigning a model.** It describes the available models, their capabilities, and their intended use cases. Use it to make an informed assignment.
+**If a `topology.toml` file exists in the project root, read it before assigning a model.** It describes the available models, their capabilities, and their intended use cases. Use it to make an informed assignment.
 
-If no `topology.md` is present, use your best judgement and note the assumption in the task file.
+If no `topology.toml` is present, use your best judgement and note the assumption in the task file.
 
-General guidance (override with topology.md when present):
+General guidance (override with topology.toml when present):
 
 | Work type | Suggested assignment |
 |---|---|
@@ -222,13 +222,13 @@ estimated_total = spec_tokens + file_tokens + reasoning_buffer
 |---|---|---|
 | `spec_tokens` | inference backend | tokenise the task file via `/tokenize` (llama-server) or `/api/tokenize` (Ollama) — provided by **ask-remote-llm-skill** |
 | `file_tokens` | inference backend | tokenise each path listed under `## Files to read before starting`; sum the counts |
-| `reasoning_buffer` | topology.md `## Agent State` | written by **ask-remote-agent-skill** `topology` subcommand; preserved across `load-topology discover` runs |
-| `context_window` | topology.md `## Model State` | probed by **load-topology-skill** `discover` from llama-server `/props` or Ollama `/api/show` |
-| `tok/s` | topology.md `## LLM Benchmarks` | measured by **load-topology-skill** `benchmark` subcommand |
+| `reasoning_buffer` | topology.toml `agent_state` | written by **ask-remote-agent-skill** `topology` subcommand; preserved across `load-topology discover` runs |
+| `context_window` | topology.toml `model_state` | probed by **load-topology-skill** `discover` from llama-server `/props` or Ollama `/api/show` |
+| `tok/s` | topology.toml `benchmarks` | measured by **load-topology-skill** `benchmark` subcommand |
 
 ### Difficulty rating
 
-Thresholds are relative to the `context_window` of the target node, read from `topology.md`. If topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
+Thresholds are relative to the `context_window` of the target node, read from `topology.toml`. If topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
 
 | Rating | Level | Estimated tokens | Meaning |
 |---|---|---|---|
@@ -270,7 +270,7 @@ Check the topology (load-topology-skill) to confirm the assigned model is runnin
 ## Executing a task
 
 1. Read the task file fully before starting.
-2. If `topology.md` exists, confirm the assigned model matches what is currently available.
+2. If `topology.toml` exists, confirm the assigned model matches what is currently available.
 3. Work through the **Changes** section in the order given by **Recommended approach**.
 4. Resolve any **Open questions** encountered during execution; note the decision in the file.
 5. Verify every item in **Done when** before declaring the task complete.

@@ -6,7 +6,7 @@ Algorithm:
 
   spec_tokens     — tokenize the task file itself
   file_tokens     — tokenize each file listed under "## Files to read before starting"
-  reasoning_buffer — from Agent State in topology.md for the target agent handle
+  reasoning_buffer — from agent_state in topology.toml for the target agent handle
 
 Complexity levels:
   L1  < 25K tokens  — fits comfortably in a 65K context window
@@ -15,15 +15,16 @@ Complexity levels:
 
 The Pre-flight section is appended to the task file before delegation.
 
-Sources:
-  context_window   — ## Model State in topology.md (written by load-topology-skill)
-  reasoning_buffer — ## Agent State in topology.md (written by ask-remote-agent-skill)
-  tok/s            — ## LLM Benchmarks in topology.md (written by load-topology-skill)
+Sources (all arrays in topology.toml, written by topology-skill):
+  context_window   — model_state
+  reasoning_buffer — agent_state
+  tok/s            — benchmarks
 """
 
 import json
 import os
 import re
+import tomllib
 import urllib.request
 from pathlib import Path
 
@@ -37,87 +38,41 @@ L2_FRACTION = 0.60
 
 
 def get_topology_path() -> str:
-    skills_home = os.environ.get('SKILLS_HOME', os.path.expanduser('~/.agents/skills'))
-    return os.environ.get('TOPOLOGY_PATH', os.path.join(skills_home, 'topology.md'))
+    topologies_home = os.environ.get('TOPOLOGIES_HOME', os.path.expanduser('~/.agents/skills'))
+    return os.path.join(topologies_home, 'topology.toml')
 
 
 # ── Topology readers ──────────────────────────────────────────────────────────
 
-def _parse_section_table(lines: list[str], header: str) -> list[dict]:
-    """Parse the first markdown table found after `header` in lines."""
-    in_section = False
-    headers: list[str] | None = None
-    rows: list[dict] = []
-    for line in lines:
-        if line.strip() == header:
-            in_section = True
-            continue
-        if in_section and line.startswith('## ') and line.strip() != header:
-            break
-        if not in_section:
-            continue
-        if line.startswith('| ') and headers is None and '---' not in line:
-            headers = [h.strip() for h in line.split('|')[1:-1]]
-        elif headers and line.startswith('|') and '---' not in line:
-            values = [v.strip() for v in line.split('|')[1:-1]]
-            rows.append(dict(zip(headers, values[:len(headers)])))
-    return rows
+def _read_topology_array(topology_path: str, key: str) -> list[dict]:
+    try:
+        with open(topology_path, 'rb') as f:
+            return tomllib.load(f).get(key, [])
+    except FileNotFoundError:
+        return []
 
 
 def read_topology_context_window(topology_path: str, hostname: str, backend: str) -> int | None:
-    """Read context_window from ## Model State for the given (hostname, backend) row."""
-    try:
-        with open(topology_path) as f:
-            lines = f.read().splitlines()
-    except FileNotFoundError:
-        return None
-    rows = _parse_section_table(lines, '## Model State')
-    for row in rows:
+    """Read context_window from model_state for the given (hostname, backend) row."""
+    for row in _read_topology_array(topology_path, 'model_state'):
         if row.get('hostname') == hostname and row.get('backend') == backend:
-            val = row.get('context_window', '—')
-            if val and val != '—':
-                try:
-                    return int(val)
-                except ValueError:
-                    pass
+            return row.get('context_window')
     return None
 
 
 def read_topology_reasoning_buffer(topology_path: str, hostname: str, agent_name: str) -> int:
-    """Read reasoning_buffer from ## Agent State; fall back to DEFAULT_REASONING_BUFFER."""
-    try:
-        with open(topology_path) as f:
-            lines = f.read().splitlines()
-    except FileNotFoundError:
-        return DEFAULT_REASONING_BUFFER
-    rows = _parse_section_table(lines, '## Agent State')
-    for row in rows:
+    """Read reasoning_buffer from agent_state; fall back to DEFAULT_REASONING_BUFFER."""
+    for row in _read_topology_array(topology_path, 'agent_state'):
         if row.get('hostname') == hostname and row.get('agent') == agent_name:
-            val = row.get('reasoning_buffer', '—')
-            if val and val != '—':
-                try:
-                    return int(val)
-                except ValueError:
-                    pass
+            return row.get('reasoning_buffer', DEFAULT_REASONING_BUFFER)
     return DEFAULT_REASONING_BUFFER
 
 
 def read_topology_tok_s(topology_path: str, hostname: str, model: str) -> float | None:
-    """Read tok/s from ## LLM Benchmarks for the given (hostname, model) row."""
-    try:
-        with open(topology_path) as f:
-            lines = f.read().splitlines()
-    except FileNotFoundError:
-        return None
-    rows = _parse_section_table(lines, '## LLM Benchmarks')
-    for row in rows:
+    """Read tok/s from benchmarks for the given (hostname, model) row."""
+    for row in _read_topology_array(topology_path, 'benchmarks'):
         if row.get('hostname') == hostname and row.get('model') == model:
-            val = row.get('tok_s', '—')
-            if val and val != '—':
-                try:
-                    return float(val)
-                except ValueError:
-                    pass
+            return row.get('tok_s')
     return None
 
 

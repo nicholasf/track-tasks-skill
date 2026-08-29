@@ -70,7 +70,7 @@ The response shows a difficulty rating and estimated duration:
 ⏳⏳ L2 (~120s) — moderate, snug but fits a 65K window
 ```
 
-Ratings are relative to the target node's context window (read from `topology.md`). If the inference backend is not reachable, the skill falls back to a character-count heuristic and marks the estimate as approximate.
+Ratings are relative to the target node's context window (read from `topology.toml`). If the inference backend is not reachable, the skill falls back to a character-count heuristic and marks the estimate as approximate.
 
 ### Check pending work
 
@@ -112,7 +112,7 @@ Ask "estimate time for this task", "how long will this take", or "what's the dif
 | ⏳⏳ | L2 | 40–60% of context window | Moderate — snug, watch for overflow |
 | ⏳⏳⏳ | L3 | > 60% of context window | Long — split into sub-tasks before sending |
 
-The context window is read from `topology.md` for the target node and model, written there by [load-topology-skill](https://github.com/nicholasf/load-topology-skill). This means an L3 threshold differs by agent handle: a node with a 65K context window rates L3 at >39K tokens, while one with a 128K window rates L3 at >78K tokens. If the topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
+The context window is read from `topology.toml` for the target node and model, written there by [load-topology-skill](https://github.com/nicholasf/load-topology-skill). This means an L3 threshold differs by agent handle: a node with a 65K context window rates L3 at >39K tokens, while one with a 128K window rates L3 at >78K tokens. If the topology is not available, fallback thresholds of 25K (L1) and 40K (L2) apply.
 
 The rating and estimated duration appear at the top of the `## Pre-flight` section written into the task file:
 
@@ -128,7 +128,7 @@ The rating and estimated duration appear at the top of the `## Pre-flight` secti
 - Time estimate: ~120s at 215 t/s
 ```
 
-The duration estimate comes from `estimated_total ÷ tok/s`, where throughput is measured by [load-topology-skill](https://github.com/nicholasf/load-topology-skill)'s benchmark subcommand and stored in `topology.md`.
+The duration estimate comes from `estimated_total ÷ tok/s`, where throughput is measured by [load-topology-skill](https://github.com/nicholasf/load-topology-skill)'s benchmark subcommand and stored in `topology.toml`.
 
 ---
 
