@@ -1,8 +1,8 @@
 from datetime import date
 from unittest.mock import patch
 
-from show import closed_summary
-from task import Task, to_toml
+from show import closed_summary, parse_task, print_table
+from task import ExecutionMode, Task, to_toml
 
 
 def _write_task(path, created: str, title: str = 'A task') -> None:
@@ -11,6 +11,26 @@ def _write_task(path, created: str, title: str = 'A task') -> None:
         'status': 'completed', 'created': created,
     })
     path.write_text(to_toml(task))
+
+
+# ── parse_task / print_table (execution mode) ──────────────────────────────────
+
+def test_parse_task_includes_mode(tmp_path):
+    path = tmp_path / 'task.toml'
+    task = Task.model_validate({
+        'title': 'A task', 'goal': 'g', 'model': 'm', 'agent': 'a',
+        'execution_mode': 'local_worktree',
+    })
+    path.write_text(to_toml(task))
+    assert parse_task(path)['mode'] == ExecutionMode.local_worktree
+
+
+def test_print_table_shows_mode_column(capsys):
+    tasks = [{'title': 'A task', 'status': 'in_progress', 'created': '2026-01-01', 'model': 'm', 'mode': 'local_worktree'}]
+    print_table(tasks, 'pending', page=1, per_page=20, total=1)
+    out = capsys.readouterr().out
+    assert 'Mode' in out
+    assert 'local_worktree' in out
 
 
 # ── closed_summary ────────────────────────────────────────────────────────────
