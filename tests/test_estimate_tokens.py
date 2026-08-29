@@ -185,35 +185,53 @@ def test_tokenize_ollama_returns_none_on_error():
 # ── topology readers ──────────────────────────────────────────────────────────
 
 TOPOLOGY = """\
-# Topology
+[[model_state]]
+hostname = "pond"
+backend = "llama-server"
+port = 9337
+models = ["qwen3-coder-30b.gguf"]
+context_window = 65536
+status = "up"
+last_seen = "2026-06-08"
 
-## Model State
-*Last updated: 2026-06-08*
+[[model_state]]
+hostname = "gollum"
+backend = "ollama"
+port = 11434
+models = ["qwen3-coder:30b"]
+context_window = 131072
+status = "up"
+last_seen = "2026-06-08"
 
-| hostname | backend | port | models | context_window | status | last-seen |
-|---|---|---|---|---|---|---|
-| pond | llama-server | 9337 | qwen3-coder-30b.gguf | 65536 | up | 2026-06-08 |
-| gollum | ollama | 11434 | qwen3-coder:30b | 131072 | up | 2026-06-08 |
+[[agent_state]]
+hostname = "pond"
+agent = "hermes"
+endpoint = "http://pond:8642"
+status = "up"
+process = "running"
+last_seen = "2026-06-08"
+reasoning_buffer = 12000
 
-## Agent State
-*Last updated: 2026-06-08*
+[[agent_state]]
+hostname = "gollum"
+agent = "hermes"
+endpoint = "http://gollum:8642"
+status = "down"
+process = "not found"
 
-| hostname | agent | endpoint | status | process | last-seen | reasoning_buffer |
-|---|---|---|---|---|---|---|
-| pond | hermes | http://pond:8642 | up | running | 2026-06-08 | 12000 |
-| gollum | hermes | http://gollum:8642 | down | not found | — | — |
-
-## LLM Benchmarks
-
-| hostname | model | timestamp | ttft_ms | tok_s | runs |
-|---|---|---|---|---|---|
-| pond | qwen3-coder-30b.gguf | 2026-06-01 | 250 | 215.0 | 3 |
+[[benchmarks]]
+hostname = "pond"
+model = "qwen3-coder-30b.gguf"
+timestamp = "2026-06-01"
+ttft_ms = 250
+tok_s = 215.0
+runs = 3
 """
 
 
 @pytest.fixture
 def topology_file(tmp_path):
-    p = tmp_path / 'topology.md'
+    p = tmp_path / 'topology.toml'
     p.write_text(TOPOLOGY)
     return str(p)
 
@@ -233,19 +251,19 @@ def test_read_context_window_missing_host_returns_none(topology_file):
 
 
 def test_read_context_window_missing_file_returns_none(tmp_path):
-    assert read_topology_context_window(str(tmp_path / 'missing.md'), 'pond', 'llama-server') is None
+    assert read_topology_context_window(str(tmp_path / 'missing.toml'), 'pond', 'llama-server') is None
 
 
 def test_read_reasoning_buffer_set_value(topology_file):
     assert read_topology_reasoning_buffer(topology_file, 'pond', 'hermes') == 12000
 
 
-def test_read_reasoning_buffer_dash_falls_back_to_default(topology_file):
+def test_read_reasoning_buffer_absent_falls_back_to_default(topology_file):
     assert read_topology_reasoning_buffer(topology_file, 'gollum', 'hermes') == DEFAULT_REASONING_BUFFER
 
 
 def test_read_reasoning_buffer_missing_file_returns_default(tmp_path):
-    result = read_topology_reasoning_buffer(str(tmp_path / 'missing.md'), 'pond', 'hermes')
+    result = read_topology_reasoning_buffer(str(tmp_path / 'missing.toml'), 'pond', 'hermes')
     assert result == DEFAULT_REASONING_BUFFER
 
 
