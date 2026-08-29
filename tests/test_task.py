@@ -1,5 +1,5 @@
 import pytest
-from task import Task, render
+from task import Task, from_toml, render, to_toml
 
 
 def _minimal() -> dict:
@@ -152,3 +152,50 @@ def test_render_preflight_content_embedded_directly():
     assert '## Pre-flight ⏳ L1' in output
     assert '- Spec: 500 tokens' in output
     assert output.count('## Pre-flight') == 1
+
+
+# ── TOML round-trip ───────────────────────────────────────────────────────────
+
+def test_to_toml_from_toml_roundtrip_minimal():
+    task = Task.model_validate(_minimal())
+    assert from_toml(to_toml(task)) == task
+
+
+def test_to_toml_from_toml_roundtrip_full():
+    task = Task.model_validate({
+        **_minimal(),
+        'created': '2026-01-01 00:00:00',
+        'background': 'Some context.',
+        'changes': ['Add foo.py', 'Remove bar.py'],
+        'files_to_read': ['src/main.py'],
+        'open_questions': ['Is this right?'],
+        'recommended_approach': 'Do it carefully.',
+        'done_when': ['Tests pass'],
+        'preflight': '## Pre-flight ⏳ L1\n\n- Spec: 500 tokens\n',
+    })
+    assert from_toml(to_toml(task)) == task
+
+
+def test_to_toml_roundtrip_with_results():
+    task = Task.model_validate({
+        **_minimal(),
+        'results': {'tests': 'pass', 'files_changed': 'foo.py', 'summary': 'Did the thing.'},
+    })
+    assert from_toml(to_toml(task)) == task
+
+
+def test_to_toml_roundtrip_status_enum():
+    task = Task.model_validate({**_minimal(), 'status': 'completed'})
+    roundtripped = from_toml(to_toml(task))
+    assert roundtripped.status == 'completed'
+    assert roundtripped == task
+
+
+def test_to_toml_omits_results_table_when_empty():
+    task = Task.model_validate(_minimal())
+    assert '[results]' not in to_toml(task)
+
+
+def test_to_toml_escapes_quotes_and_backslashes():
+    task = Task.model_validate({**_minimal(), 'background': 'say "hi" \\ bye'})
+    assert from_toml(to_toml(task)).background == 'say "hi" \\ bye'

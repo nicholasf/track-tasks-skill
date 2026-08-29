@@ -1,6 +1,6 @@
 # Track Tasks
 
-Tasks are Markdown files that capture a unit of work before it begins. They live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. A corresponding entry is added to `development-log.md`.
+Tasks are TOML files that capture a unit of work before it begins — a typed `Task` model (`scripts/task.py`) is read, mutated, and written at every stage, so nothing is parsed back out of prose. They live in `tasks/pending/` while in progress and move to `tasks/completed/` when done. A corresponding entry is added to `development-log.md` (itself still plain Markdown — it's an append-only human changelog, never parsed back).
 
 ## Dependencies
 
@@ -96,7 +96,7 @@ echo '{
 
 ### Preflight values
 
-`create.py` always populates the `## Pre-flight` section before writing:
+`create.py` always populates the `preflight` field before writing:
 
 | Value | Meaning |
 |---|---|
@@ -114,30 +114,33 @@ A **programme task** coordinates a group of related sub-tasks. Use one when the 
 
 Keep the programme under 20 lines. It is an index, not a spec — the spec lives in the sub-tasks.
 
-```markdown
-# <Title>
+```toml
+type = "programme"
+title = "<Title>"
+created = "<YYYY-MM-DD HH:MM:SS>"
+status = "in_progress"
+goal = "One sentence."
 
-**Type:** programme
-**Created:** <YYYY-MM-DD HH:MM:SS>
-**Status:** in-progress
+[[sub_tasks]]
+slug = "<slug>"
+path = "../pending/<timestamp>-<slug>.toml"
+done = false
 
-## Goal
-One sentence.
-
-## Sub-tasks
-- [ ] [<slug>](../pending/<timestamp>-<slug>.md)
-- [ ] [<slug>](../pending/<timestamp>-<slug>.md)
+[[sub_tasks]]
+slug = "<slug>"
+path = "../pending/<timestamp>-<slug>.toml"
+done = false
 ```
 
-Check off each item as the sub-task is completed. Mark the programme `completed` when all sub-tasks are checked.
+Set `done = true` on each sub-task's entry as it completes. Mark the programme `completed` when all sub-tasks are done. (This shape is a hand-authored convention, not yet backed by a script — unlike `create`/`complete`/`deprecate`, there's no dedicated programme-task tooling.)
 
 ### Sub-task file format
 
-Keep each sub-task under 40 lines. Use the standard task format plus two extra fields at the top:
+Keep each sub-task under 40 lines. Use the standard task format plus two extra fields:
 
-```
-**Type:** sub-task
-**Parent:** <timestamp>-<programme-slug>.md
+```toml
+type = "sub-task"
+parent = "<timestamp>-<programme-slug>.toml"
 ```
 
 ### Context economy rules
@@ -184,7 +187,7 @@ Before delegating a task, estimate its token cost and difficulty rating so the u
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
   estimate-tokens \
-  tasks/pending/<timestamp>-<slug>.md \
+  tasks/pending/<timestamp>-<slug>.toml \
   --hostname <node> \
   --backend llama-server \
   --agent hermes \
@@ -205,7 +208,7 @@ Run `estimate-tokens` via `main.py`:
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
   estimate-tokens \
-  tasks/pending/<timestamp>-<slug>.md \
+  tasks/pending/<timestamp>-<slug>.toml \
   --hostname <node> \
   --backend llama-server \
   --agent hermes \
@@ -221,7 +224,7 @@ estimated_total = spec_tokens + file_tokens + reasoning_buffer
 | Term | Source | How |
 |---|---|---|
 | `spec_tokens` | inference backend | tokenise the task file via `/tokenize` (llama-server) or `/api/tokenize` (Ollama) — provided by **ask-remote-llm-skill** |
-| `file_tokens` | inference backend | tokenise each path listed under `## Files to read before starting`; sum the counts |
+| `file_tokens` | inference backend | tokenise each path listed in `files_to_read`; sum the counts |
 | `reasoning_buffer` | topology.toml `agent_state` | written by **ask-remote-agent-skill** `topology` subcommand; preserved across `load-topology discover` runs |
 | `context_window` | topology.toml `model_state` | probed by **load-topology-skill** `discover` from llama-server `/props` or Ollama `/api/show` |
 | `tok/s` | topology.toml `benchmarks` | measured by **load-topology-skill** `benchmark` subcommand |
@@ -262,7 +265,7 @@ Use ask-foreign-agent in bridge mode. The remote agent has tools to read the loc
 "${SKILLS_HOME:-$HOME/.agents/skills}/ask-foreign-agent-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/ask-foreign-agent-skill/agent.py" \
   --cwd "$(pwd)" \
-  "Execute the task at tasks/pending/<timestamp>-<slug>.md in full. Read the file first, implement everything described, and fill in the ## Results section when done."
+  "Execute the task at tasks/pending/<timestamp>-<slug>.toml in full. Read the file first, implement everything described, and fill in the `results` field when done."
 ```
 
 Check the topology (load-topology-skill) to confirm the assigned model is running before delegating. Run pre-flight first for any task larger than a trivial edit.
@@ -279,7 +282,7 @@ Check the topology (load-topology-skill) to confirm the assigned model is runnin
 
 When a task was executed by a delegated local model, the reviewing orchestrating agent must **not** read the full changed files — doing so consumes the API tokens that delegation was intended to save. Instead:
 
-1. Read only the **Results** section of the task file (filled in by the executing model).
+1. Read only the `results` field of the task file (filled in by the executing model).
 2. Run or confirm the acceptance commands listed in **Done when** (test counts, typecheck). The test suite is the primary correctness signal.
 3. Present a short summary to the user:
    - What changed (file list and counts, not contents)
@@ -291,11 +294,10 @@ When a task was executed by a delegated local model, the reviewing orchestrating
 
 When the output has concrete errors, do not fix them directly — send the task back with a correction spec appended to the task file. This keeps the full review/correction history in one place.
 
-1. Add a `## Corrections — Round N` section at the bottom of the task file (above `## Results`).
-2. List each error as a numbered item. Be specific: state what was wrong and exactly what the correct behaviour is. Do not leave room for interpretation.
-3. Re-delegate using the same ask-foreign-agent command.
-4. Repeat until the output is correct, incrementing the round number each time.
-5. Apply any trivial mechanical fixes yourself (e.g. missing timeout values, a single renamed field) rather than burning another round — note what you changed in `## Results`.
+1. Append a `[[corrections]]` entry to the task file — `round` (int, incrementing) and `items` (list of strings). Be specific: state what was wrong and exactly what the correct behaviour is. Do not leave room for interpretation. (Hand-authored convention, like programme tasks — no dedicated script edits this.)
+2. Re-delegate using the same ask-foreign-agent command.
+3. Repeat until the output is correct, incrementing the round number each time.
+4. Apply any trivial mechanical fixes yourself (e.g. missing timeout values, a single renamed field) rather than burning another round — note what you changed in the `results` field.
 
 ## Show subcommand
 
@@ -322,14 +324,14 @@ Print the table output directly to the user. If the directory does not exist, re
 ## Completing a task
 
 When all **Done when** items are verified, run `main.py complete`. It validates the FSM transition,
-fills the `## Results` section, moves the file to `tasks/completed/`, and appends to
+fills the `results` field, moves the file to `tasks/completed/`, and appends to
 `development-log.md`.
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
   complete \
-  tasks/pending/<timestamp>-<slug>.md \
+  tasks/pending/<timestamp>-<slug>.toml \
   --summary "What was done" \
   --tests "5 pass, 0 fail" \
   --files-changed "foo.py (+40), bar.py (-12)" \
@@ -349,16 +351,16 @@ Prints the path of the moved file to stdout. Exits non-zero if the task is alrea
 ## Deprecating a task
 
 When a task is superseded before completion, run `main.py deprecate`. It validates the FSM transition,
-adds `**Deprecated by:**`, moves the file to `tasks/deprecated/`, and appends to
+sets `deprecated_by`, moves the file to `tasks/deprecated/`, and appends to
 `development-log.md`.
 
 ```bash
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
   deprecate \
-  tasks/pending/<timestamp>-<slug>.md \
+  tasks/pending/<timestamp>-<slug>.toml \
   --reason "Superseded by programme task" \
-  --deprecated-by "<timestamp>-<new-slug>.md" \
+  --deprecated-by "<timestamp>-<new-slug>.toml" \
   --cwd "$(pwd)"
 ```
 
@@ -377,7 +379,7 @@ and the judgement metadata, moves the file to `tasks/hallucinated/`, and appends
 "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
   "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
   mark-as-hallucinated \
-  tasks/pending/<timestamp>-<slug>.md \
+  tasks/pending/<timestamp>-<slug>.toml \
   --solution "The agent reported it had refactored auth.py but no files changed." \
   --hallucinating-agent-handle "pond-qwen-hermes" \
   --reporter "local-claude" \

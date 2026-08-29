@@ -1,3 +1,5 @@
+import tomllib
+
 from pydantic import BaseModel
 
 from workflow import TaskState
@@ -17,6 +19,45 @@ class Task(BaseModel):
     recommended_approach: str = ''
     done_when: list[str] = []
     preflight: str = ''
+    results: dict[str, str] = {}
+    deprecated_by: str = ''
+    hallucinating_agent: str = ''
+    hallucination_reporter: str = ''
+    hallucination_reason: str = ''
+
+
+def _format_toml_value(value) -> str:
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        return '[' + ', '.join(_format_toml_value(v) for v in value) + ']'
+    text = str(value)
+    if '\n' in text:
+        # Literal multi-line string — no escape processing, so prose round-trips verbatim.
+        return f"'''\n{text}'''"
+    escaped = text.replace('\\', '\\\\').replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def to_toml(task: Task) -> str:
+    """Serialize a Task to TOML — the on-disk storage format for task files."""
+    data = task.model_dump(mode='json')
+    results = data.pop('results')
+
+    lines = [f'{key} = {_format_toml_value(value)}' for key, value in data.items()]
+
+    if results:
+        lines += ['', '[results]']
+        lines += [f'{key} = {_format_toml_value(value)}' for key, value in results.items()]
+
+    return '\n'.join(lines) + '\n'
+
+
+def from_toml(text: str) -> Task:
+    """Parse a Task from its TOML storage format."""
+    return Task.model_validate(tomllib.loads(text))
 
 
 def render(task: Task) -> str:

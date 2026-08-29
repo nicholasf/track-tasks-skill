@@ -1,37 +1,25 @@
 import pytest
 from pathlib import Path
 
-from deprecate import deprecate_task, _read_status, _add_deprecated_by
+from deprecate import deprecate_task
+from task import Task, from_toml, to_toml
 from workflow import TaskState
 
 
 def _make_task_file(tmp_path: Path, status: str = 'pending') -> Path:
     pending_dir = tmp_path / 'tasks' / 'pending'
     pending_dir.mkdir(parents=True)
-    task_file = pending_dir / '2026-06-13T00-00-00-test-task.md'
-    task_file.write_text(
-        f'# Test Task\n\n'
-        f'**Created:** 2026-06-13\n'
-        f'**Model:** qwen3-coder-30b\n'
-        f'**Agent:** `pond-qwen-hermes`\n'
-        f'**Status:** {status}\n\n'
-        f'## Goal\n\nDo a thing.\n'
-    )
+    task_file = pending_dir / '2026-06-13T00-00-00-test-task.toml'
+    task = Task.model_validate({
+        'title': 'Test Task',
+        'goal': 'Do a thing.',
+        'model': 'qwen3-coder-30b',
+        'agent': 'pond-qwen-hermes',
+        'created': '2026-06-13',
+        'status': status,
+    })
+    task_file.write_text(to_toml(task))
     return task_file
-
-
-# ── helpers ───────────────────────────────────────────────────────────────────
-
-def test_read_status_treats_planned_as_pending():
-    assert _read_status('**Status:** planned') == TaskState.pending
-
-
-def test_add_deprecated_by_inserts_after_status():
-    content = '**Status:** deprecated\n## Goal\n'
-    result = _add_deprecated_by(content, '2026-06-13T12-00-00-new-task.md')
-    lines = result.splitlines()
-    status_index = next(i for i, l in enumerate(lines) if '**Status:**' in l)
-    assert '**Deprecated by:**' in lines[status_index + 1]
 
 
 # ── deprecate_task ────────────────────────────────────────────────────────────
@@ -47,19 +35,19 @@ def test_deprecate_task_moves_file_to_deprecated(tmp_path):
 def test_deprecate_task_updates_status(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = deprecate_task(task_file, 'Replaced', '', tmp_path)
-    assert '**Status:** deprecated' in dest.read_text()
+    assert from_toml(dest.read_text()).status == TaskState.deprecated
 
 
 def test_deprecate_task_adds_deprecated_by_when_provided(tmp_path):
     task_file = _make_task_file(tmp_path)
-    dest = deprecate_task(task_file, 'Replaced', '2026-06-13T12-00-00-new-task.md', tmp_path)
-    assert '**Deprecated by:** 2026-06-13T12-00-00-new-task.md' in dest.read_text()
+    dest = deprecate_task(task_file, 'Replaced', '2026-06-13T12-00-00-new-task.toml', tmp_path)
+    assert from_toml(dest.read_text()).deprecated_by == '2026-06-13T12-00-00-new-task.toml'
 
 
 def test_deprecate_task_omits_deprecated_by_when_empty(tmp_path):
     task_file = _make_task_file(tmp_path)
     dest = deprecate_task(task_file, 'Replaced', '', tmp_path)
-    assert '**Deprecated by:**' not in dest.read_text()
+    assert from_toml(dest.read_text()).deprecated_by == ''
 
 
 def test_deprecate_task_preserves_filename(tmp_path):

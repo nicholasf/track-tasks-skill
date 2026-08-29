@@ -23,10 +23,11 @@ Sources (all arrays in topology.toml, written by topology-skill):
 
 import json
 import os
-import re
 import tomllib
 import urllib.request
 from pathlib import Path
+
+from task import from_toml, to_toml
 
 DEFAULT_REASONING_BUFFER = 12_000
 # Fallback thresholds used when context_window is not available from topology.
@@ -112,31 +113,6 @@ def tokenize_ollama(host: str, model: str, text: str, port: int = 11434) -> int 
         return len(tokens)
     except Exception:
         return None
-
-
-# ── Task file parsing ─────────────────────────────────────────────────────────
-
-def parse_model_field(task_text: str) -> str | None:
-    """Extract the value of the **Model:** field from a task file."""
-    m = re.search(r'^\*\*Model:\*\*\s*(.+)$', task_text, re.MULTILINE)
-    return m.group(1).strip() if m else None
-
-
-def parse_files_to_read(task_text: str) -> list[str]:
-    """Extract file paths listed under '## Files to read before starting'."""
-    m = re.search(
-        r'^## Files to read before starting\s*\n(.*?)(?=^##|\Z)',
-        task_text, re.MULTILINE | re.DOTALL,
-    )
-    if not m:
-        return []
-    block = m.group(1)
-    paths = []
-    for line in block.splitlines():
-        line = line.strip().lstrip('-').strip()
-        if line and not line.startswith('#'):
-            paths.append(line)
-    return paths
 
 
 # ── Complexity ────────────────────────────────────────────────────────────────
@@ -228,13 +204,11 @@ def run_token_estimate(
         topology_path = get_topology_path()
 
     with open(task_path) as f:
-        task_text = f.read()
+        task = from_toml(f.read())
 
-    # Remove any existing Pre-flight section before retokenising
-    task_for_tokens = re.sub(
-        r'^## Pre-flight[^\n]*\n.*?(?=^##|\Z)', '', task_text,
-        flags=re.MULTILINE | re.DOTALL,
-    ).strip()
+    # Tokenize without any existing preflight, so retokenising doesn't count a
+    # stale estimate as part of the spec.
+    task_for_tokens = to_toml(task.model_copy(update={'preflight': ''}))
 
     if backend == 'ollama':
         spec_tokens = tokenize_ollama(hostname, model, task_for_tokens)
@@ -244,10 +218,9 @@ def run_token_estimate(
     if spec_tokens is None:
         raise RuntimeError(f'Tokenisation failed: could not reach {backend} on {hostname}')
 
-    file_paths = parse_files_to_read(task_text)
     file_token_counts: dict[str, int] = {}
     base = cwd or os.path.dirname(os.path.abspath(task_path))
-    for rel_path in file_paths:
+    for rel_path in task.files_to_read:
         abs_path = os.path.join(base, rel_path) if not os.path.isabs(rel_path) else rel_path
         try:
             with open(abs_path) as f:
@@ -276,28 +249,13 @@ def run_token_estimate(
 
 
 def append_token_estimate(task_path: str, preflight_text: str) -> None:
-    """Replace or insert the ## Pre-flight section after **Status:** in the task file."""
+    """Set the task's preflight field and write it back to disk."""
     with open(task_path) as f:
-        content = f.read()
+        task = from_toml(f.read())
 
-    # Remove all existing Pre-flight sections (header may include rating/level/source suffix)
-    content = re.sub(
-        r'^## Pre-flight[^\n]*\n.*?(?=^##|\Z)', '', content,
-        flags=re.MULTILINE | re.DOTALL,
-    ).rstrip()
-
-    # Insert after **Status:** line if present, before the next section
-    status_match = re.search(r'^\*\*Status:\*\*[^\n]*', content, re.MULTILINE)
-    if status_match:
-        insert_pos = status_match.end()
-        rest = content[insert_pos:].lstrip('\n')
-        content = content[:insert_pos] + f'\n\n{preflight_text}\n' + rest
-    elif '\n## Results' in content:
-        content = content.replace('\n## Results', f'\n\n{preflight_text}\n## Results', 1)
-    else:
-        content = content + '\n\n' + preflight_text
+    task = task.model_copy(update={'preflight': preflight_text})
 
     with open(task_path, 'w') as f:
-        f.write(content)
+        f.write(to_toml(task))
 
 
