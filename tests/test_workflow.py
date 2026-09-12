@@ -8,6 +8,7 @@ def test_taskstate_values_are_strings():
     assert TaskState.completed == 'completed'
     assert TaskState.deprecated == 'deprecated'
     assert TaskState.hallucinated == 'hallucinated'
+    assert TaskState.failed == 'failed'
 
 
 def test_pending_can_transition_to_in_progress():
@@ -34,6 +35,28 @@ def test_in_progress_can_transition_to_deprecated():
 def test_in_progress_cannot_transition_to_pending():
     with pytest.raises(ValueError):
         transition(TaskState.in_progress, TaskState.pending)
+
+
+def test_in_progress_can_transition_to_failed():
+    transition(TaskState.in_progress, TaskState.failed)
+
+
+def test_failed_can_transition_to_pending():
+    transition(TaskState.failed, TaskState.pending)
+
+
+def test_failed_can_transition_to_deprecated():
+    transition(TaskState.failed, TaskState.deprecated)
+
+
+def test_pending_cannot_transition_to_failed():
+    with pytest.raises(ValueError):
+        transition(TaskState.pending, TaskState.failed)
+
+
+def test_failed_cannot_transition_to_completed():
+    with pytest.raises(ValueError):
+        transition(TaskState.failed, TaskState.completed)
 
 
 def test_completed_cannot_transition_anywhere():

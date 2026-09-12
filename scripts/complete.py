@@ -1,7 +1,7 @@
 from datetime import date
 from pathlib import Path
 
-from task import from_toml, to_toml
+from task import from_toml, latest_section_number, to_toml
 from workflow import TaskState, transition
 
 
@@ -25,6 +25,9 @@ def complete_task(
     task = task.model_copy(update={
         'status': TaskState.completed,
         'results': {'tests': tests, 'files_changed': files_changed, 'summary': summary},
+        # Which section carried the task to completion — empty if it never
+        # failed and so has no sections.
+        'completed_by_section': latest_section_number(task),
     })
 
     completed_dir = cwd / 'tasks' / 'completed'

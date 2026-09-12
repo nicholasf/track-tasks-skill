@@ -1,8 +1,10 @@
 import tomllib
 from enum import StrEnum
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+import toml_writer
 from workflow import TaskState
 
 
@@ -11,6 +13,55 @@ class ExecutionMode(StrEnum):
     ask_agent = 'ask_agent'
     local = 'local'
     local_worktree = 'local_worktree'
+
+
+class Section(BaseModel):
+    """Base for the numbered records kept on a task.
+
+    Holds only what is universal to every section type: what it is, and when.
+    Everything about who acted and how big the work was belongs to the specific
+    type, since those mean different things per type.
+
+    Adding a third section type requires only a new subclass and an entry in
+    AnySection — nothing else may branch on how many types exist.
+    """
+    type: str = ''
+    at_utc: str = ''
+    at_local: str = ''
+
+
+class Failure(Section):
+    """A run that was attempted and did not finish.
+
+    Its outcome and log are never rendered, so they can be as detailed as
+    needed — render is the model-facing view, and failure history accumulating
+    in it would inflate the very context budget a retry needs.
+    """
+    type: Literal['failure'] = 'failure'
+    agent: str = ''
+    model: str = ''
+    complexity: str = ''
+    outcome: str = ''
+    log: str = ''
+
+
+class Revision(Section):
+    """The correction made in response to a failure.
+
+    Unlike a failure, a revision's instructions ARE rendered — they carry what
+    the next attempt needs. Only the latest revision is rendered, so a second
+    revision must restate anything from the first that still applies.
+    """
+    type: Literal['revision'] = 'revision'
+    agent: str = ''
+    complexity: str = ''
+    instructions: str = ''
+
+
+# Discriminated on `type` so from_toml restores the concrete subclass. Without
+# the discriminator every section parses back as a bare Section and silently
+# loses its subclass fields — a round-trip that loses data rather than failing.
+AnySection = Annotated[Failure | Revision, Field(discriminator='type')]
 
 
 class Task(BaseModel):
@@ -28,6 +79,17 @@ class Task(BaseModel):
     done_when: list[str] = []
     preflight: str = ''
     results: dict[str, str] = {}
+    # Numbered records keyed by section number as a string, so they serialize
+    # as [sections.1], [sections.2], ... A failure is never rendered; the
+    # latest revision's instructions are.
+    sections: dict[str, AnySection] = {}
+    # The highest-numbered section, and the section a completed task was
+    # completed under. Both for a person reading the file; neither is rendered.
+    latest_section: str = ''
+    completed_by_section: str = ''
+    # Paths of the tasks this one coordinates. A programme is simply a task
+    # with these populated; an ordinary task leaves them empty. Not rendered.
+    sub_tasks: list[str] = []
     deprecated_by: str = ''
     hallucinating_agent: str = ''
     hallucination_reporter: str = ''
@@ -37,33 +99,9 @@ class Task(BaseModel):
     worktree_branch: str = ''
 
 
-def _format_toml_value(value) -> str:
-    if isinstance(value, bool):
-        return 'true' if value else 'false'
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, list):
-        return '[' + ', '.join(_format_toml_value(v) for v in value) + ']'
-    text = str(value)
-    if '\n' in text:
-        # Literal multi-line string — no escape processing, so prose round-trips verbatim.
-        return f"'''\n{text}'''"
-    escaped = text.replace('\\', '\\\\').replace('"', '\\"')
-    return f'"{escaped}"'
-
-
 def to_toml(task: Task) -> str:
     """Serialize a Task to TOML — the on-disk storage format for task files."""
-    data = task.model_dump(mode='json')
-    results = data.pop('results')
-
-    lines = [f'{key} = {_format_toml_value(value)}' for key, value in data.items()]
-
-    if results:
-        lines += ['', '[results]']
-        lines += [f'{key} = {_format_toml_value(value)}' for key, value in results.items()]
-
-    return '\n'.join(lines) + '\n'
+    return toml_writer.dumps(task)
 
 
 def from_toml(text: str) -> Task:
@@ -120,7 +158,37 @@ def render(task: Task) -> str:
         '',
     ]
 
+    revision = latest_revision(task)
+    if revision is not None and revision.instructions:
+        parts += ['## Revision', '', revision.instructions, '']
+
     return '\n'.join(parts)
+
+
+def next_section_number(task: Task) -> str:
+    """The key for the next section — one sequence shared across all types."""
+    return str(max((int(k) for k in task.sections), default=0) + 1)
+
+
+def latest_section_number(task: Task) -> str:
+    """The highest-numbered section, or empty if there are none.
+
+    Compared numerically, not lexically — otherwise '10' sorts before '9'.
+    """
+    numbers = [int(k) for k in task.sections]
+    return str(max(numbers)) if numbers else ''
+
+
+def latest_revision(task: Task) -> Revision | None:
+    """The most recent Revision, or None.
+
+    Filters by type rather than branching on how many types exist, so a third
+    section type needs no change here.
+    """
+    revisions = [(int(k), v) for k, v in task.sections.items() if isinstance(v, Revision)]
+    if not revisions:
+        return None
+    return max(revisions, key=lambda pair: pair[0])[1]
 
 
 def _section(parts: list[str], heading: str, content: str) -> None:

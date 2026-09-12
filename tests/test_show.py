@@ -118,3 +118,17 @@ def test_no_completed_label_when_none_exist(tmp_path):
     result = closed_summary(tmp_path)
     assert 'completed' not in result
     assert '1 deprecated' in result
+
+
+def test_parse_task_skips_a_file_that_is_not_a_task(tmp_path):
+    # A programme file predating the schema, or any malformed file, must not
+    # take the whole listing down with it.
+    bad = tmp_path / 'not-a-task.toml'
+    bad.write_text('title = "Programme"\ngoal = "g"\n')  # no model, no agent
+    assert parse_task(bad) == {}
+
+
+def test_parse_task_skips_unparseable_toml(tmp_path):
+    bad = tmp_path / 'broken.toml'
+    bad.write_text('this is not = = toml')
+    assert parse_task(bad) == {}

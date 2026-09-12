@@ -1,0 +1,36 @@
+title = "Render the latest revision with the task"
+goal = "render emits the task's own fields plus the instructions from the most recent revision, and nothing from any failure."
+model = "qwen3.8-27b on pond via ask-llm bridge — single function change"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 10:35:39"
+background = "render is the model-facing view of a task. Failure sections are excluded from it deliberately, so failure history does not consume the context budget of the next attempt. A revision is different: it carries the correction the next attempt actually needs, so it must render. Only the latest revision renders — earlier ones do not — which means each revision has to restate anything from an earlier one that still applies."
+changes = ["In scripts/task.py, extend render so that after the existing sections it emits a '## Revision' heading followed by the instructions of the most recent Revision in Task.sections, if there is one", "Most recent means the highest section number, comparing numerically rather than as strings, so 10 sorts after 9", "Emit nothing at all when the task has no revision — no empty heading", "Emit only the latest revision, never earlier ones", "Never emit anything from a Failure — not its outcome, not its log, not its complexity", "Add tests: a task with one revision renders its instructions; a task with two revisions renders only the later one's instructions and not the earlier one's; a task with a failure renders neither its outcome nor its log; a task with both a failure and a revision renders the revision's instructions but nothing from the failure; a task with no sections renders no revision heading; and section 10 is treated as later than section 9"]
+files_to_read = ["scripts/task.py", "tests/test_task.py"]
+open_questions = ["Where the revision appears in the rendered output relative to the existing sections is not specified. Put it at the end, after Results, and say so in results."]
+recommended_approach = "Read only the two files listed. Do not explore the repository. render is already selective — it emits named fields one at a time — so this is an addition at the end, not a restructure. Use edit_file; never write_file."
+done_when = ["A task with one revision renders its instructions", "A task with two revisions renders only the latest", "Section 10 is treated as later than section 9", "No failure content appears in rendered output under any combination", "A task with no revision renders no revision heading", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 609 tokens
+- Files: task.py (990), test_task.py (2,264) → 3,254 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~15,863 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+latest_section = ""
+completed_by_section = ""
+sub_tasks = []
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "local"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "234 pass, 0 fail"
+files_changed = "see commit"
+summary = "Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks."

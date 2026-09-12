@@ -1,0 +1,33 @@
+title = "Wire toml_writer into task.py"
+goal = "task.to_toml delegates to toml_writer instead of carrying its own serialization logic, with no change to the output for existing task files."
+model = "qwen3.8-27b on pond via ask-llm bridge — small refactor with existing tests as a guard"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 08:44:48"
+background = "scripts/task.py has its own _format_toml_value and to_toml. scripts/toml_writer.py now does the same job more completely — it handles nested tables, arrays of tables, omits None, and falls back safely when prose cannot be held in a literal string. Keeping two serializers risks them drifting apart."
+changes = ["Replace the body of to_toml in scripts/task.py so it calls toml_writer.dumps", "Delete _format_toml_value from task.py — toml_writer.format_value replaces it", "to_toml must keep its existing signature and still return a string, because callers depend on it", "The output must remain equivalent for existing task files: parsing the old output and the new output with tomllib must give equal dicts. It does not have to be byte-identical", "Keep the results dict serializing as a [results] table, as it does today", "Do not change render — that is a separate task"]
+files_to_read = ["scripts/task.py", "scripts/toml_writer.py", "tests/test_task.py"]
+open_questions = []
+recommended_approach = "Read both modules first to confirm toml_writer already covers what task.py's serializer does. This is a deletion and a delegation, not a rewrite — the new writer exists and is tested. Run the full suite afterwards, since test_task.py and test_create.py both exercise to_toml indirectly."
+done_when = ["task.py no longer defines _format_toml_value", "to_toml returns the same parsed structure as before for a task with results filled in", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 492 tokens
+- Files: task.py (1,049), toml_writer.py (1,022), test_task.py (1,767) → 3,838 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~16,330 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "193 pass, 0 fail — unchanged, which is the point for a refactor. Plus an out-of-suite round-trip check against five real task files."
+files_changed = "scripts/task.py (+2/-25)"
+summary = "Executed by qwen3.8-27b on pond via ask-llm bridge. to_toml now delegates to toml_writer.dumps; _format_toml_value deleted from task.py, removing the second serializer and the risk of the two drifting. Signature unchanged, results still serializes as a [results] table. Verified beyond the test suite: all five real yggd task files, including the deprecated and failed ones, parse to identical structures before and after."

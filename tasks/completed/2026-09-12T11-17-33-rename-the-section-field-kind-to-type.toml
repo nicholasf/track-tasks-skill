@@ -1,0 +1,33 @@
+title = "Rename the section field kind to type"
+goal = "The Section field is called type, matching the word task files already use at the top level."
+model = "qwen3.8-27b on pond via ask-llm bridge — mechanical rename, four occurrences"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 11:17:32"
+background = "Section has a field called kind. Task files already use type at the top level for programme and sub-task, so kind is a second word for the same idea. This is a rename and nothing else — no model restructuring."
+changes = ["scripts/task.py line 24: the Section field kind becomes type", "scripts/record_failure.py line 29: the keyword argument kind='failure' becomes type='failure'", "tests/test_task.py line 225: the dict key 'kind' becomes 'type'", "tests/test_record_failure.py line 53: section.kind becomes section.type", "Change nothing else. Do not add classes, do not move fields, do not touch any other line"]
+files_to_read = ["scripts/task.py", "scripts/record_failure.py"]
+open_questions = []
+recommended_approach = "Four single-line edits, one edit_file each. The line numbers above are exact — go straight to them. Do not read the test files in full; edit the named lines. Do not explore the repository."
+done_when = ["No occurrence of the word kind remains in scripts/ or tests/", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 373 tokens
+- Files: task.py (990), record_failure.py (428) → 1,418 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~13,791 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "local"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "209 passed in 0.24s (full suite, .venv/bin/python3 -m pytest -q)"
+files_changed = "scripts/task.py (1 line: kind: str = '' -> type: str = ''), scripts/record_failure.py (1 line: kind='failure' -> type='failure'), tests/test_task.py (1 line: 'kind' -> 'type'), tests/test_record_failure.py (1 line: section.kind -> section.type)"
+summary = "Renamed the Section field kind to type, matching the top-level 'type' word task files already use. Four single-line edits exactly as specified: Section.kind on scripts/task.py, the kind='failure' kwarg in scripts/record_failure.py, the 'kind' dict key in tests/test_task.py, and section.kind in tests/test_record_failure.py. Verified no occurrence of 'kind' remains in scripts/ or tests/ source files."

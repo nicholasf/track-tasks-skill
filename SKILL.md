@@ -16,4 +16,4 @@ When the user asks to create a task, delegate work, show tasks, or complete a ta
 
 - [load-topology-skill](https://github.com/nicholasf/load-topology-skill)
 
-Tasks are Markdown files in `tasks/pending/` while in progress and `tasks/completed/` when done. A corresponding entry goes in `development-log.md`. Invoke `/track-tasks` for the full workflow.
+Tasks are TOML files in `tasks/pending/` while in progress and `tasks/completed/` when done. A corresponding entry goes in `development-log.md`, which remains Markdown. Invoke `/track-tasks` for the full workflow.

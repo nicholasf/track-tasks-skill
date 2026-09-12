@@ -1,0 +1,40 @@
+title = "Split Section into Failure and Revision subclasses"
+goal = "Sections are typed: a Section base carries what every section has, with Failure and Revision subclasses carrying the rest, discriminated by a type field."
+model = "qwen3.8-27b on pond via ask-llm bridge — model restructure with existing tests as a guard"
+agent = "pond-qwen"
+status = "deprecated"
+created = "2026-09-12 10:35:38"
+background = "Section is currently one flat model shaped entirely for a failure, with a field named kind. Two things change. First, kind is renamed to type, matching the word task files already use at the top level for programme and sub-task. Second, Section becomes a base that can have MANY types — failure and revision are the two that exist now, but the design must accommodate more without restructuring. Every field that belongs to a particular type lives on that type, never on the base."
+changes = ["In scripts/task.py, rename the Section field kind to type", "Reduce Section to the fields that are universal to EVERY section type, present and future: type, at_utc, at_local. Nothing type-specific may remain on the base", "Add a Failure subclass of Section: type defaults to the literal \"failure\", plus agent, model, complexity, outcome and log, all defaulting to empty", "Add a Revision subclass of Section: type defaults to the literal \"revision\", plus agent, complexity and instructions, all defaulting to empty", "agent and complexity appear on both subclasses deliberately — they mean different things per type and are not universal, so they do not belong on the base", "Change Task.sections to a union of the section types discriminated on the type field, so parsing restores the correct subclass", "Adding a third section type later must require only: defining the subclass, and adding it to the union. Nothing else in the codebase may hardcode an assumption that exactly two types exist — no if/else on \"failure or revision\", no two-branch dispatch. Anywhere that needs one type must filter by type", "The discriminator is the point of this task: without it from_toml parses every section back into the base Section and silently drops the subclass fields. Add a test that a Failure round-trips through to_toml and from_toml and is still a Failure with its log intact, and the same for a Revision with its instructions", "Update scripts/record_failure.py to construct a Failure rather than a Section, and to write type rather than kind", "Update any existing test that refers to kind"]
+files_to_read = ["scripts/task.py", "scripts/record_failure.py", "tests/test_task.py"]
+open_questions = []
+recommended_approach = "Read only the three files listed. Do not explore the repository — no git log, no directory listings. A previous task in this programme filled its 32k context with reading and had no room left to edit. Use edit_file per change; never write_file on an existing file."
+done_when = ["Section carries only type, at_utc and at_local", "Failure and Revision both subclass Section and own all of their own fields", "Task.sections is a discriminated union, not a bare Section", "A Failure round-trips through to_toml and from_toml and is still a Failure, with log preserved", "A Revision round-trips and is still a Revision, with instructions preserved", "Adding a third type would require only a new subclass and a union entry — no other code assumes two", "No occurrence of the word kind remains in scripts/ or tests/", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 631 tokens
+- Files: task.py (990), record_failure.py (428), test_task.py (2,264) → 3,682 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~16,313 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = "2026-09-12T11-17-33-rename-the-section-field-kind-to-type.toml"
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[sections]
+
+[sections.1]
+kind = "failure"
+at_utc = "2026-09-12T00:50:02+00:00"
+at_local = "2026-09-12 10:50:02 AEST"
+agent = "pond-qwen"
+model = "qwen3.8-27b:latest"
+complexity = "L1, ~14,000 predicted"
+outcome = "Gathered to 7,217 tokens then generated ~25,000 in one response; truncated at 32,767 with no edits"
+log = "8 tool calls: 5 read_file, 3 grep. Zero edit_file. It read task.py, record_failure.py and test_task.py, grepped for 'kind' and correctly located all four occurrences, then generated for ~10 minutes without issuing another tool call and was cut off. Context was NOT the constraint on input: 7,217 of 32,768 used after gathering. Third occurrence of this failure mode, and the pattern is now clear: qwen3.8 runs away generating when the change is STRUCTURAL (restructuring a model, replacing a block) rather than a set of small local edits. Tasks that succeeded on this branch were all many-small-edit_file changes. Tasks that failed this way were 0005 (rewrite a CREATE TABLE block plus 7 renames) and this one (split one model into a base and two subclasses with a discriminated union). Likely cause: it attempts to emit the whole rewritten file inline instead of editing."

@@ -21,7 +21,9 @@ This skill is part of a small ecosystem:
 | `complete` | Move a task to `tasks/completed/` and record a summary in `development-log.md` |
 | `deprecate` | Move a task to `tasks/deprecated/` when it is superseded before completion |
 | `mark-as-hallucinated` | Move a task to `tasks/hallucinated/` when the executing LLM claimed completion but produced no real output |
-| `show` | Print a summary table of tasks in a given state (`pending`, `completed`, `deprecated`, `hallucinated`) |
+| `show` | Print a summary table of tasks in a given state (`pending`, `completed`, `deprecated`, `hallucinated`). Not `failed` — `show` lists by directory, and a failed task stays in `tasks/pending/` |
+| `record-failure` | Record a failed attempt as a numbered section; the task stays in `tasks/pending/` |
+| `record-revision` | Record the correction made in response and return the task to `pending` |
 | `estimate-tokens` | Count token cost across the task spec and referenced files, rate complexity, and estimate duration |
 
 ---
@@ -163,10 +165,11 @@ The duration estimate comes from `estimated_total ÷ tok/s`, where throughput is
 
 | State | Location | Meaning |
 |---|---|---|
-| `planned` / `in-progress` | `tasks/pending/` | Active work |
+| `pending` / `in_progress` | `tasks/pending/` | Active work |
 | `completed` | `tasks/completed/` | Successfully finished |
 | `deprecated` | `tasks/deprecated/` | Superseded before completion |
 | `hallucinated` | `tasks/hallucinated/` | The executing LLM claimed to complete the task but produced no real output |
+| `failed` | `tasks/pending/` | Attempted but did not finish — still wanted, so it stays in `tasks/pending/` |
 
 A task is marked `hallucinated` when the executing LLM reports that it completed the work — describing changes, tests, and results — but no actual output exists: no files written, no diff produced, no tests run. The remote agent may return a confident, detailed summary that is entirely fabricated.
 
@@ -181,9 +184,44 @@ This preserves evidence for later analysis of which agent handles, models, or ta
 
 ---
 
+## Sections — failures and revisions
+
+A task that ran and did not finish is `failed`, not `hallucinated`. The difference matters: a failure means the agent ran and stopped short; a hallucination means it reported work it never did. Check whether anything actually changed before choosing, because `hallucinated` is terminal and `failed` is not.
+
+Both a failure and the correction made in response are recorded as **numbered sections on the task itself**. No new task is created, and the task's own text is never edited.
+
+| Section type | Records | Rendered to the executing model? |
+|---|---|---|
+| `failure` | A run that was attempted and did not finish | No |
+| `revision` | The correction made in response | Latest only |
+
+Numbering is one sequence across both — a failure at 1 and its revision at 2.
+
+```bash
+main.py record-failure  <task> --agent ... --model ... --complexity ... --outcome ... --log ...
+main.py record-revision <task> --agent ... --complexity ... --instructions ...
+```
+
+`record-failure` sets the task to `failed`. `record-revision` records the correction and returns it to `pending`, ready to run again. Neither moves the file — a failed task is still wanted, so it stays in `tasks/pending/`.
+
+**A failure is never rendered**, so its `outcome` and `log` can be as detailed as needed — tool-call counts, token progressions, whatever diagnoses it.
+
+**A revision's `instructions` are rendered, but only the latest one.** So a second revision must restate anything from the first that still applies, or it is lost. Keep a revision small: it is *added* to what the model already reads rather than replacing it, so each one makes the next attempt's input larger.
+
+Two fields surface this at the top of a task file, neither of them rendered:
+
+| Field | Holds |
+|---|---|
+| `latest_section` | The highest-numbered section |
+| `completed_by_section` | Which section a completed task was finally completed under |
+
+---
+
 ## Programme tasks
 
-A programme task coordinates a group of related sub-tasks — use one when the full work is too large to delegate as a single task. It is an index (under 20 lines); the spec lives in the sub-tasks.
+A programme is an **ordinary task carrying `sub_tasks`** — a list of the paths of the tasks it coordinates. There is no separate programme type: a task with `sub_tasks` populated is a programme, one without is not.
+
+Whether a sub-task is done is read from the directory its file sits in, so no per-entry flag is kept.
 
 ```
 create a programme task for the payment module refactor with sub-tasks for schema, API, and tests

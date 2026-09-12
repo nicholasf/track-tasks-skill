@@ -420,6 +420,118 @@ Prints the path of the moved file to stdout. Exits non-zero if the task is alrea
 | `--reason` | no | Why it was judged as a hallucination |
 | `--cwd` | no | Project root (default: inferred from task path) |
 
+## Recording a failure
+
+When a delegated agent ran but did not finish the task — for example it ran out of
+context — run `main.py record-failure`. It validates the FSM transition and records
+the failure as a numbered section on the same task file; no new task is created.
+The task file does NOT move — a failed task stays in `tasks/pending/` because it is
+still wanted.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  record-failure \
+  tasks/pending/<timestamp>-<slug>.toml \
+  --agent "pond-qwen" \
+  --model "qwen3.8-27b:latest" \
+  --complexity "L1 ~14,000 predicted" \
+  --outcome "Reached 32,283 tokens and stopped cleanly without editing; not truncated" \
+  --log "17 tool calls: 7 bash, 6 read_file, 3 grep, 1 list_directory. No edit_file calls." \
+  --cwd "$(pwd)"
+```
+
+| Argument | Required | Description |
+|---|---|---|
+| `task` | yes | Path to the task file |
+| `--agent` | yes | Agent handle that ran the task |
+| `--model` | yes | Model that ran the task |
+| `--complexity` | yes | Predicted complexity (e.g. "L1 ~14,000 predicted") |
+| `--outcome` | yes | What happened — where the run stopped and why |
+| `--log` | yes | Tool-call summary and any other diagnostic detail |
+| `--cwd` | no | Project root (default: inferred from task path) |
+
+### Failed versus hallucinated
+
+Use `record-failure` when the agent ran and did not finish — for example it ran out
+of context. Use `mark-as-hallucinated` when the agent reported work it never did.
+Check whether anything actually changed before choosing: a real run that stopped
+short is a failure, a claimed completion with no real output is a hallucination.
+
+### What happens next
+
+From `failed` a judgement is required: retry by returning the task to `pending`, or
+deprecate to abandon it. Staying `failed` is a valid resting state while undecided.
+
+A failure's `outcome` and `log` are never rendered to an executing model, so they can
+be as detailed as needed — tool-call counts, token progressions, whatever diagnoses it.
+
+## Recording a revision
+
+A failure calls for a judgement: examine what happened, then either abandon the task or
+correct it and run it again. `record-failure` captures the first half; `record-revision`
+captures the second — the correction itself, written as instructions the next attempt
+will read. It returns the task from `failed` to `pending`.
+
+**The task's own text is not edited.** The correction lives in the revision.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  record-revision \
+  tasks/pending/<timestamp>-<slug>.toml \
+  --agent "claude" \
+  --complexity "L1 re-estimated after the correction" \
+  --instructions "Edit command.md, not SKILL.md. SKILL.md is a 19-line stub." \
+  --cwd "$(pwd)"
+```
+
+| Argument | Required | Description |
+|---|---|---|
+| `task` | yes | Path to the task file |
+| `--agent` | yes | Who made the revision |
+| `--complexity` | yes | Re-estimate after the correction |
+| `--instructions` | yes | The correction — the only section content ever rendered |
+| `--cwd` | no | Project root (default: inferred from task path) |
+
+### Only the latest revision is rendered
+
+`render` gives the executing model the task's own text plus the `instructions` of the
+**latest** revision. Earlier revisions are not shown.
+
+**So a second revision must restate anything from the first that still applies**, or it
+is lost. This is easy to get wrong and hard to notice.
+
+Keep a revision small. It is *added* to what the model already reads rather than
+replacing it, so every revision makes the next attempt's input larger. That is the
+opposite pressure from a failure's log, which is excluded and can be verbose.
+
+### Section types
+
+| Type | Records | Rendered? |
+|---|---|---|
+| `failure` | A run that was attempted and did not finish | No |
+| `revision` | The correction made in response | Latest only |
+
+Numbering is **one sequence across both types** — a failure at 1 and its revision at 2,
+not two separate sequences. A third type needs only a new subclass and an entry in
+`AnySection`; nothing branches on how many types exist.
+
+A section may later be spilled to `tasks/<task-slug>.sections/<section>.md`; this is
+currently manual.
+
+### Header fields
+
+`latest_section` sits at the top of a task file so a reader sees at a glance that a task
+has failed and been revised. `completed_by_section` records which section a completed
+task was finally completed under. Neither is rendered.
+
+## Programme tasks
+
+A programme is an ordinary task carrying `sub_tasks` — a list of the paths of the tasks
+it coordinates. There is no separate programme type: a task with `sub_tasks` populated
+is a programme, and one without is not.
+
 ## Directory structure
 
 ```
@@ -430,5 +542,8 @@ tasks/
   hallucinated/ # tasks where the executing LLM hallucinated a solution
 development-log.md
 ```
+
+Failed tasks have no directory of their own — a failed task stays in `pending/`
+because it is still wanted.
 
 Create these if they do not exist.

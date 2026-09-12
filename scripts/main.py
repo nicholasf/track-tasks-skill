@@ -10,6 +10,8 @@ from create import select_tokenizer, create_task
 from complete import complete_task
 from deprecate import deprecate_task
 from mark_as_hallucinated import mark_as_hallucinated
+from record_failure import record_failure
+from record_revision import record_revision
 from start import start_task
 from task import ExecutionMode, from_toml
 from estimate_tokens import run_token_estimate, append_token_estimate
@@ -77,6 +79,42 @@ def _cmd_deprecate(args: argparse.Namespace) -> None:
         dest = deprecate_task(task_path, args.reason, args.deprecated_by, cwd)
     except (ValueError, FileNotFoundError) as error:
         print(f'[deprecate] {error}', file=sys.stderr)
+        sys.exit(1)
+    print(dest)
+
+
+def _cmd_record_failure(args: argparse.Namespace) -> None:
+    task_path = Path(args.task).resolve()
+    cwd = Path(args.cwd).resolve() if args.cwd else task_path.parent.parent.parent
+    try:
+        dest = record_failure(
+            task_path,
+            args.agent,
+            args.model,
+            args.complexity,
+            args.outcome,
+            args.log,
+            cwd,
+        )
+    except (ValueError, FileNotFoundError) as error:
+        print(f'[record-failure] {error}', file=sys.stderr)
+        sys.exit(1)
+    print(dest)
+
+
+def _cmd_record_revision(args: argparse.Namespace) -> None:
+    task_path = Path(args.task).resolve()
+    cwd = Path(args.cwd).resolve() if args.cwd else task_path.parent.parent.parent
+    try:
+        dest = record_revision(
+            task_path,
+            args.agent,
+            args.complexity,
+            args.instructions,
+            cwd,
+        )
+    except (ValueError, FileNotFoundError) as error:
+        print(f'[record-revision] {error}', file=sys.stderr)
         sys.exit(1)
     print(dest)
 
@@ -212,6 +250,28 @@ def main() -> None:
                    help='Slug or path of the replacing task')
     p.add_argument('--cwd', default=None, help='Project root')
     p.set_defaults(func=_cmd_deprecate)
+
+    # ── record-failure ────────────────────────────────────────────────────────
+    p = sub.add_parser('record-failure', help='Record a failed attempt on a task (stays in pending)')
+    p.add_argument('task', help='Path to the task file')
+    p.add_argument('--agent', required=True, help='Agent handle that attempted the task')
+    p.add_argument('--model', required=True, help='Model name used for the attempt')
+    p.add_argument('--complexity', required=True, help='Complexity rating for the attempt')
+    p.add_argument('--outcome', required=True, help='One-line outcome of the attempt')
+    p.add_argument('--log', required=True, help='Log describing what happened')
+    p.add_argument('--cwd', default=None, help='Project root')
+    p.set_defaults(func=_cmd_record_failure)
+
+    # ── record-revision ───────────────────────────────────────────────────────
+    p = sub.add_parser('record-revision',
+                       help='Record a correction to a failed task and return it to pending')
+    p.add_argument('task', help='Path to the task file')
+    p.add_argument('--agent', required=True, help='Who made the revision')
+    p.add_argument('--complexity', required=True, help='Re-estimated complexity after the correction')
+    p.add_argument('--instructions', required=True,
+                   help='The correction. Rendered to the executing model; only the latest revision is shown')
+    p.add_argument('--cwd', default=None, help='Project root')
+    p.set_defaults(func=_cmd_record_revision)
 
     # ── mark-as-hallucinated ──────────────────────────────────────────────────
     p = sub.add_parser('mark-as-hallucinated', help='Mark a task as hallucinated by an LLM')

@@ -1,5 +1,5 @@
 import pytest
-from task import ExecutionMode, Task, from_toml, render, to_toml
+from task import ExecutionMode, Failure, Revision, Section, Task, from_toml, render, to_toml
 
 
 def _minimal() -> dict:
@@ -216,3 +216,171 @@ def test_to_toml_omits_results_table_when_empty():
 def test_to_toml_escapes_quotes_and_backslashes():
     task = Task.model_validate({**_minimal(), 'background': 'say "hi" \\ bye'})
     assert from_toml(to_toml(task)).background == 'say "hi" \\ bye'
+
+
+# ── sections ──────────────────────────────────────────────────────────────────
+
+def _section_payload() -> dict:
+    return {
+        'type': 'failure',
+        'at_utc': '2026-09-12T08:44:48Z',
+        'at_local': '2026-09-12 04:44:48 EDT',
+        'agent': 'pond-qwen',
+        'model': 'qwen3.8-27b',
+        'complexity': 'L1 ~13,938',
+        'outcome': 'Tests failed: 2 errors',
+        'log': 'Traceback (most recent call last):\n  File "x.py", line 1\nAssertionError: boom',
+    }
+
+
+def test_sections_default_to_empty():
+    task = Task.model_validate(_minimal())
+    assert task.sections == {}
+
+
+def test_render_excludes_sections():
+    task = Task.model_validate({
+        **_minimal(),
+        'sections': {'1': _section_payload()},
+    })
+    output = render(task)
+    assert 'failure' not in output
+    assert '2026-09-12T08:44:48Z' not in output
+    assert '2026-09-12 04:44:48 EDT' not in output
+    assert 'L1 ~13,938' not in output
+    assert 'Tests failed: 2 errors' not in output
+    assert 'AssertionError: boom' not in output
+    assert 'Traceback' not in output
+    assert '## Sections' not in output
+
+
+def test_to_toml_uses_numbered_section_headers():
+    task = Task.model_validate({
+        **_minimal(),
+        'sections': {'1': _section_payload(), '2': _section_payload()},
+    })
+    text = to_toml(task)
+    assert '[sections.1]' in text
+    assert '[sections.2]' in text
+
+
+def test_to_toml_omits_sections_table_when_empty():
+    task = Task.model_validate(_minimal())
+    assert '[sections' not in to_toml(task)
+
+
+def test_to_toml_from_toml_roundtrip_with_sections():
+    task = Task.model_validate({
+        **_minimal(),
+        'sections': {'1': _section_payload(), '2': _section_payload()},
+    })
+    assert from_toml(to_toml(task)) == task
+
+
+# ── Failure and Revision section classes ──────────────────────────────────────
+
+def test_failure_defaults_type():
+    assert Failure().type == 'failure'
+
+
+def test_revision_defaults_type_and_instructions():
+    revision = Revision()
+    assert revision.type == 'revision'
+    assert revision.instructions == ''
+
+
+# ── section types ─────────────────────────────────────────────────────────────
+
+def test_failure_round_trips_as_a_failure():
+    # Without a discriminator this silently returns a bare Section and loses log.
+    t = Task.model_validate(_minimal() | {
+        'sections': {'1': Failure(agent='pond', log='detail', outcome='stopped')},
+    })
+    back = from_toml(to_toml(t))
+    assert isinstance(back.sections['1'], Failure)
+    assert back.sections['1'].log == 'detail'
+
+
+def test_revision_round_trips_as_a_revision():
+    t = Task.model_validate(_minimal() | {
+        'sections': {'1': Revision(agent='claude', instructions='do it differently')},
+    })
+    back = from_toml(to_toml(t))
+    assert isinstance(back.sections['1'], Revision)
+    assert back.sections['1'].instructions == 'do it differently'
+
+
+def test_mixed_sections_each_keep_their_type():
+    t = Task.model_validate(_minimal() | {
+        'sections': {'1': Failure(log='why'), '2': Revision(instructions='fix')},
+    })
+    back = from_toml(to_toml(t))
+    assert isinstance(back.sections['1'], Failure)
+    assert isinstance(back.sections['2'], Revision)
+
+
+def test_section_base_has_only_universal_fields():
+    assert set(Section.model_fields) == {'type', 'at_utc', 'at_local'}
+
+
+# ── rendering revisions ───────────────────────────────────────────────────────
+
+def test_render_includes_the_latest_revision():
+    t = Task.model_validate(_minimal() | {'sections': {'1': Revision(instructions='CORRECTION')}})
+    assert 'CORRECTION' in render(t)
+
+
+def test_render_shows_only_the_latest_revision():
+    t = Task.model_validate(_minimal() | {'sections': {
+        '1': Revision(instructions='FIRST'),
+        '2': Revision(instructions='SECOND'),
+    }})
+    out = render(t)
+    assert 'SECOND' in out
+    assert 'FIRST' not in out
+
+
+def test_render_orders_revisions_numerically_not_lexically():
+    # '10' must beat '9' — string comparison would pick 9.
+    t = Task.model_validate(_minimal() | {'sections': {
+        '9': Revision(instructions='NINE'),
+        '10': Revision(instructions='TEN'),
+    }})
+    out = render(t)
+    assert 'TEN' in out
+    assert 'NINE' not in out
+
+
+def test_render_never_shows_failure_content():
+    t = Task.model_validate(_minimal() | {'sections': {
+        '1': Failure(outcome='OUTCOME', log='LOG', complexity='COMPLEXITY'),
+        '2': Revision(instructions='SHOWN'),
+    }})
+    out = render(t)
+    assert 'SHOWN' in out
+    for hidden in ('OUTCOME', 'LOG', 'COMPLEXITY'):
+        assert hidden not in out
+
+
+def test_render_omits_revision_heading_when_none():
+    assert '## Revision' not in render(Task.model_validate(_minimal()))
+
+
+# ── header fields ─────────────────────────────────────────────────────────────
+
+def test_latest_section_and_completed_by_section_are_not_rendered():
+    t = Task.model_validate(_minimal() | {'latest_section': '7', 'completed_by_section': '7'})
+    out = render(t)
+    assert 'latest_section' not in out
+    assert 'completed_by_section' not in out
+
+
+def test_sub_tasks_default_empty_and_round_trip():
+    assert Task.model_validate(_minimal()).sub_tasks == []
+    t = Task.model_validate(_minimal() | {'sub_tasks': ['a.toml', 'b.toml']})
+    assert from_toml(to_toml(t)).sub_tasks == ['a.toml', 'b.toml']
+
+
+def test_sub_tasks_are_not_rendered():
+    t = Task.model_validate(_minimal() | {'sub_tasks': ['secret-plan.toml']})
+    assert 'secret-plan.toml' not in render(t)
