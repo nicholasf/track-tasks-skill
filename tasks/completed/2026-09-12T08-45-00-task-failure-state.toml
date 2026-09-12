@@ -1,0 +1,31 @@
+title = "Task failure state"
+goal = "A task that was attempted and did not finish can be recorded as failed, and the judgement made in response can be recorded as a revision, both as sections on the task itself."
+model = "various — see each sub-task"
+agent = "various — see each sub-task"
+status = "completed"
+created = "2026-09-12 08:45:00"
+background = '''
+A programme is an ordinary task carrying sub_tasks. Whether a sub-task is done is read from the directory its file sits in, so no per-entry flag is kept.
+
+This file previously used a hand-authored shape (type = "programme", sub_tasks as an array of tables) that the Task model could not parse, which made main.py show raise on the whole directory.'''
+changes = []
+files_to_read = []
+open_questions = []
+recommended_approach = ""
+done_when = []
+preflight = ""
+latest_section = ""
+completed_by_section = ""
+sub_tasks = ["tasks/completed/2026-09-12T08-43-32-add-the-failed-state-to-the-task-workflow.toml", "tasks/completed/2026-09-12T08-43-32-extend-tomlwriter-to-emit-nested-tables.toml", "tasks/completed/2026-09-12T08-44-48-add-sections-to-the-task-model-and-keep-them-out-of-render.toml", "tasks/completed/2026-09-12T08-44-48-add-the-recordfailure-subcommand.toml", "tasks/completed/2026-09-12T08-44-48-wire-tomlwriter-into-taskpy.toml", "tasks/completed/2026-09-12T08-44-49-document-the-failed-state-and-recordfailure-workflow.toml", "tasks/completed/2026-09-12T09-30-56-update-skillmd-and-readmemd-for-toml-and-the-failed-state.toml", "tasks/completed/2026-09-12T10-35-39-add-the-recordrevision-subcommand.toml", "tasks/completed/2026-09-12T10-35-39-document-section-types-and-the-revision-workflow.toml", "tasks/completed/2026-09-12T10-35-39-render-the-latest-revision-with-the-task.toml", "tasks/completed/2026-09-12T10-35-39-surface-the-latest-section-and-record-what-completed-a-task.toml", "tasks/completed/2026-09-12T11-17-33-add-failure-and-revision-section-classes.toml", "tasks/completed/2026-09-12T11-17-33-move-section-fields-onto-failure-and-discriminate-the-union.toml", "tasks/completed/2026-09-12T11-17-33-rename-the-section-field-kind-to-type.toml", "tasks/deprecated/2026-09-12T10-35-38-split-section-into-failure-and-revision-subclasses.toml"]
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "local"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "234 pass, 0 fail (from 184 at the start of the programme)"
+files_changed = "scripts/task.py, toml_writer.py, workflow.py, record_failure.py, record_revision.py, complete.py, show.py, main.py, command.md, README.md, SKILL.md and their tests"
+summary = "Programme complete. Delivered the failed state, typed sections (Failure and Revision discriminated on type), record-failure and record-revision, latest_section and completed_by_section, and sub_tasks making a programme an ordinary task. Also migrated this file itself from the hand-authored programme shape, which the Task model could not parse and which made main.py show raise on the whole pending directory."

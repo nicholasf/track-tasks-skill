@@ -74,3 +74,11 @@ happened. Written when there is something to say; never parsed back.
 ## 2026-09-12 — Make a programme a task that lists other tasks
 
 - Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks.
+
+## 2026-09-12 — Add TaskState FSM, complete.py, and deprecate.py
+
+- Closed retrospectively. The work landed on 2026-06-13 in commit 8a9de33 (PR #10) but the task file was never moved out of pending, so it has appeared in every listing since. All four acceptance criteria verified as still holding: the suite passes, complete.py and deprecate.py both move tasks and set status correctly, and an invalid transition such as completed to pending raises ValueError.
+
+## 2026-09-12 — Task failure state
+
+- Programme complete. Delivered the failed state, typed sections (Failure and Revision discriminated on type), record-failure and record-revision, latest_section and completed_by_section, and sub_tasks making a programme an ordinary task. Also migrated this file itself from the hand-authored programme shape, which the Task model could not parse and which made main.py show raise on the whole pending directory.
