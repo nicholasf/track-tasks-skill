@@ -1,5 +1,6 @@
 import tomllib
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -29,6 +30,17 @@ class Section(BaseModel):
     complexity: str = ''
     outcome: str = ''
     log: str = ''
+
+
+class Failure(Section):
+    """A section recording a run that did not finish."""
+    type: Literal['failure'] = 'failure'
+
+
+class Revision(Section):
+    """A section recording the correction made in response to a failure."""
+    type: Literal['revision'] = 'revision'
+    instructions: str = ''
 
 
 class Task(BaseModel):

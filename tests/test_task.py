@@ -1,5 +1,5 @@
 import pytest
-from task import ExecutionMode, Task, from_toml, render, to_toml
+from task import ExecutionMode, Failure, Revision, Task, from_toml, render, to_toml
 
 
 def _minimal() -> dict:
@@ -275,3 +275,15 @@ def test_to_toml_from_toml_roundtrip_with_sections():
         'sections': {'1': _section_payload(), '2': _section_payload()},
     })
     assert from_toml(to_toml(task)) == task
+
+
+# ── Failure and Revision section classes ──────────────────────────────────────
+
+def test_failure_defaults_type():
+    assert Failure().type == 'failure'
+
+
+def test_revision_defaults_type_and_instructions():
+    revision = Revision()
+    assert revision.type == 'revision'
+    assert revision.instructions == ''

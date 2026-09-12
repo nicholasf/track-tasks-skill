@@ -38,3 +38,7 @@ happened. Written when there is something to say; never parsed back.
 ## 2026-09-12 — Rename the section field kind to type (completed)
 - Section.kind -> type, matching the top-level task vocabulary. Four one-line edits
   across scripts/ and tests/. Suite 209 pass.
+
+## 2026-09-12 — Add Failure and Revision section classes
+
+- Executed by qwen3.8-27b on pond via the ask-llm bridge. Added Failure and Revision as subclasses of Section in scripts/task.py: Failure declares only its type literal, Revision declares its type literal plus an instructions field defaulting to empty. Imported Literal from typing. Purely additive as specified — Section keeps all eight of its fields and Task.sections still holds Section, so the two new classes are defined but not yet used. Moving fields onto Failure and switching to a discriminated union is the next task. Verified independently: Section unchanged, Task.sections still dict[str, Section], Failure().type is 'failure', Revision().type is 'revision'.
