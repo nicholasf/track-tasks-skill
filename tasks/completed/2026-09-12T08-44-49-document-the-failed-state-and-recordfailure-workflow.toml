@@ -1,0 +1,45 @@
+title = "Document the failed state in command.md"
+goal = "command.md documents record-failure, the failed state, and how a failure differs from a hallucination."
+model = "qwen3.8-27b on pond via ask-llm bridge — documentation only"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 08:44:49"
+background = "command.md is the operating document an agent reads for this skill — SKILL.md is only a 19-line frontmatter stub that points at it. A previous attempt at this work named SKILL.md and the model spent its whole context discovering that; see section 1 on this task."
+changes = ["Add a \"Recording a failure\" section to command.md, matching the structure and tone of the existing \"Deprecating a task\" and \"Marking a task as hallucinated\" sections: the invocation, an argument table, and what happens", "Arguments are: task path, --agent, --model, --complexity, --outcome, --log, --cwd", "State that the task file does NOT move — a failed task stays in tasks/pending because it is still wanted", "State plainly when to use failed rather than hallucinated: failed means the agent ran and did not finish, for example it ran out of context; hallucinated means it reported work it never did. Check whether anything actually changed before choosing", "Document that from failed a judgement is required — retry by returning the task to pending, or deprecate to abandon it. Staying failed is a valid resting state while undecided", "Document that a failure is recorded as a numbered section on the same task; no new task is created", "Document that sections are excluded from the rendered view handed to an executing model, so failure history does not consume the retry context budget", "Note that a section may later be spilled to tasks/<task-slug>.sections/<section>.md, and that this is currently manual", "Update the directory structure diagram: a failed task stays in pending, so add a note rather than a directory", "Do NOT edit SKILL.md or README.md — those are a separate task"]
+files_to_read = ["command.md"]
+open_questions = []
+recommended_approach = "Read command.md and nothing else. Do not explore the repository — no git log, no directory listings, no reading of scripts. The context window is 32k and a previous attempt filled it with reading and had no room left to make a single edit. Everything you need is in command.md and in this spec. Use edit_file per change; never write_file on command.md."
+done_when = ["command.md documents record-failure with its arguments", "The failed versus hallucinated distinction is stated explicitly", "The three onward paths from failed are documented", "The directory structure note says a failed task stays in pending", "SKILL.md and README.md are unchanged"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 604 tokens
+- Files: SKILL.md (299), README.md (2,447) → 2,746 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~15,350 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "n/a — documentation only. Verified by inspection against all five done_when criteria, and by git diff --stat that only command.md changed."
+files_changed = "command.md (+50)"
+summary = "Executed by qwen3.8-27b on pond via ask-llm bridge, on the second attempt. The first attempt failed and is preserved as section 1 on this task: the spec named SKILL.md, which is a 19-line stub, so the model spent its whole context discovering that command.md holds the real documentation. Re-spec'd to name command.md directly, with an explicit instruction not to explore the repository — the constraint being context budget rather than token cost, since a 32k window spent reading leaves no room to edit. Second attempt used 7 tool calls against the first attempt's 17 and edited only command.md. Added a Recording a failure section with invocation and argument table, the failed-versus-hallucinated distinction, the three onward paths from failed, the note that sections are excluded from the rendered view, the manual spill path, and the note that failed tasks have no directory and stay in pending. It drew its worked example from this task's own section 1, so the documentation shows a real failure rather than an invented one."
+
+[sections]
+
+[sections.1]
+type = "failure"
+at_utc = "2026-09-11T23:26:44+00:00"
+at_local = "2026-09-12 09:26:44 AEST"
+agent = "pond-qwen"
+model = "qwen3.8-27b:latest"
+complexity = "L1 ~14,000 predicted"
+outcome = "Reached 32,283 tokens and stopped cleanly without editing; not truncated"
+log = "17 tool calls: 7 bash, 6 read_file, 3 grep, 1 list_directory. No edit_file calls. Spec fault, not model fault: the task named SKILL.md as the file to edit, but SKILL.md is a 19-line frontmatter stub and the real documentation is command.md (434 lines, ~5k tokens). The model read SKILL.md, correctly inferred it was a pointer, went looking, and read command.md plus README.md plus git log and a directory listing. That exhausted the window before any edit. Fix: name command.md explicitly, forbid exploration, and split README.md into its own task. Separately noted: SKILL.md still says tasks are Markdown files; they are TOML since commit 38dff12."

@@ -1,0 +1,33 @@
+title = "Add the record-failure subcommand"
+goal = "A failed attempt can be recorded from the command line, moving the task to failed and appending a numbered section describing what happened."
+model = "qwen3.8-27b on pond via ask-llm bridge — new script following an established pattern"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 08:44:48"
+background = "The failed state and the Task.sections field are added by earlier tasks in this programme. This task adds the command that uses them. It follows the same shape as deprecate.py: load the task, validate the transition, update the model, write it back, append to the development log."
+changes = ["Add scripts/record_failure.py with a record_failure function taking the task path, the agent handle, the model name, the complexity rating, a one-line outcome, a log string, and cwd", "Validate the transition to failed using workflow.transition, so an invalid source state raises as it does for the other commands", "Append a new section keyed by the next unused number as a string, starting at 1", "Set at_utc from a single datetime.now in UTC, and derive at_local from that same instant using zoneinfo so the two cannot disagree. Use the system local zone; do not hardcode a zone name", "Unlike deprecate and complete, the task file does NOT move directory — a failed task stays in tasks/pending, because it is still wanted", "Append an entry to development-log.md if that file exists, matching how deprecate.py does it", "Wire a record-failure subcommand into scripts/main.py following the existing add_parser pattern, with arguments for agent, model, complexity, outcome, log and cwd", "Add tests/test_record_failure.py covering: the status becoming failed; a first section being keyed 1 and a second 2; the file staying in pending; at_utc and at_local describing the same instant; and an invalid source state raising"]
+files_to_read = ["scripts/deprecate.py", "scripts/main.py", "tests/test_deprecate.py"]
+open_questions = ["deprecate.py and complete.py both move the task file. This command deliberately does not. If that makes any shared helper awkward, note it in results rather than changing the other commands."]
+recommended_approach = "Read deprecate.py first — it is the closest existing command and this one mirrors it apart from not moving the file. Read its test alongside it for the fixture style. Write the script, then the main.py wiring, then the tests."
+done_when = ["record-failure appears in main.py's subcommands", "Recording a failure sets status to failed and adds section 1", "Recording a second failure adds section 2 without disturbing section 1", "The task file remains in tasks/pending", "Recording a failure from an invalid source state raises ValueError", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 680 tokens
+- Files: deprecate.py (281), main.py (2,723), test_deprecate.py (797) → 3,801 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~16,481 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "209 pass, 0 fail. Up from 198; 10 from the model plus 1 added with the correction. Verified end-to-end outside the suite: created a task, started it, recorded a failure, confirmed status failed, file still in tasks/pending, [sections.1] populated, and at_utc 23:12:03Z matching at_local 09:12:03 AEST."
+files_changed = "scripts/record_failure.py (new), scripts/main.py (+wiring), tests/test_record_failure.py (new)"
+summary = "Executed by qwen3.8-27b on pond via ask-llm bridge, with one correction applied directly by Claude. Model's work: scripts/record_failure.py following deprecate.py's shape, wired into main.py, with tests. Sets status to failed, appends a section keyed by the next unused number starting at 1, derives at_utc and at_local from a single datetime.now so they cannot disagree, and appends to development-log.md. The task file deliberately does not move — a failed task stays in tasks/pending because it is still wanted. Claude's correction: at_local was emitted as ISO with a numeric offset and microseconds, which is no more readable than at_utc; reformatted to '%Y-%m-%d %H:%M:%S %Z' so it renders as '2026-09-12 09:18:08 AEST'. The test that parsed at_local back as ISO was updated to derive the expected local string from at_utc instead, preserving its same-instant intent, and a readability test was added."

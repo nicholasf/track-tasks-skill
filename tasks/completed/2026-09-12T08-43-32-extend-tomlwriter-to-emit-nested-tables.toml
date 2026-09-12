@@ -1,0 +1,33 @@
+title = "Extend toml_writer to emit nested tables"
+goal = "toml_writer emits two-level tables such as [sections.1] correctly, so a dict of dicts round-trips through tomllib."
+model = "qwen3.8-27b on pond via ask-llm bridge — small single-module change with existing tests as a guard"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 08:43:32"
+background = "scripts/toml_writer.py currently handles one level of table nesting — a dict value becomes a [table] and its keys are emitted flat. A task's sections field is a dict of dicts, keyed by section number, and must serialize as [sections.1], [sections.2] and so on. That needs the table emission to recurse."
+changes = ["Make table emission in dumps_dict recursive so a dict nested inside a dict emits a dotted header, for example a sections dict containing a key '1' emits the header [sections.1]", "Preserve the existing ordering rule at every level: a table's own scalar keys are emitted before any of its sub-table headers, because TOML binds a key/value pair to the most recently opened header", "Keep None values omitted at every level, as now", "Keep arrays of tables working as they do now", "Add tests to tests/test_toml_writer.py covering: a two-level nested dict round-tripping through tomllib; a nested table whose parent also has scalar keys; three levels of nesting; and an empty nested dict being omitted", "Do not change scripts/task.py — wiring the writer in is a separate task"]
+files_to_read = ["scripts/toml_writer.py", "tests/test_toml_writer.py"]
+open_questions = []
+recommended_approach = "Read the module first — the docstring and the comment in _partition explain why ordering matters, and the existing tests define the behaviour that must not regress. Make the change small: the partition and emission logic already exist, they just need to apply to themselves one level down. Use edit_file for each change rather than rewriting the file."
+done_when = ["dumps_dict with a sections key holding a dict of dicts produces headers of the form [sections.1] and round-trips through tomllib unchanged", "All 23 tests that existed before this change still pass", "The new nesting tests pass", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 559 tokens
+- Files: toml_writer.py (1,022), test_toml_writer.py (1,278) → 2,300 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~14,859 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "188 pass, 0 fail. Up from 184; none of the 23 pre-existing toml_writer tests regressed."
+files_changed = "scripts/toml_writer.py (+22), tests/test_toml_writer.py (+30)"
+summary = "Executed by qwen3.8-27b on pond via ask-llm bridge. Added _emit_table, which re-partitions at each level and recurses with a dotted header, so a dict of dicts emits [sections.1] and deeper nesting emits [a.b.c]. The scalars-before-sub-tables ordering rule now holds at every level, not just the top. Arrays of tables nested inside a table are handled too. Four tests added covering two-level round-trip, a parent table with its own scalar keys, three levels, and an empty nested dict being omitted."

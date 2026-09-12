@@ -1,0 +1,73 @@
+type = "programme"
+title = "Task failure state"
+created = "2026-09-12 08:45:00"
+status = "in_progress"
+goal = "A task that was attempted and did not finish can be recorded as failed, and the judgement made in response can be recorded as a revision, both as sections on the task itself."
+
+# Part one — the failed state. Complete.
+[[sub_tasks]]
+slug = "extend-tomlwriter-to-emit-nested-tables"
+path = "../completed/2026-09-12T08-43-32-extend-tomlwriter-to-emit-nested-tables.toml"
+done = true
+
+[[sub_tasks]]
+slug = "add-the-failed-state-to-the-task-workflow"
+path = "../completed/2026-09-12T08-43-32-add-the-failed-state-to-the-task-workflow.toml"
+done = true
+
+[[sub_tasks]]
+slug = "wire-tomlwriter-into-taskpy"
+path = "../completed/2026-09-12T08-44-48-wire-tomlwriter-into-taskpy.toml"
+done = true
+
+[[sub_tasks]]
+slug = "add-sections-to-the-task-model-and-keep-them-out-of-render"
+path = "../completed/2026-09-12T08-44-48-add-sections-to-the-task-model-and-keep-them-out-of-render.toml"
+done = true
+
+[[sub_tasks]]
+slug = "add-the-recordfailure-subcommand"
+path = "../completed/2026-09-12T08-44-48-add-the-recordfailure-subcommand.toml"
+done = true
+
+[[sub_tasks]]
+slug = "document-the-failed-state-and-recordfailure-workflow"
+path = "../completed/2026-09-12T08-44-49-document-the-failed-state-and-recordfailure-workflow.toml"
+done = true
+
+[[sub_tasks]]
+slug = "update-skillmd-and-readmemd-for-toml-and-the-failed-state"
+path = "../completed/2026-09-12T09-30-56-update-skillmd-and-readmemd-for-toml-and-the-failed-state.toml"
+done = true
+
+# Part two — revisions. Not started.
+[[sub_tasks]]
+slug = "split-section-into-failure-and-revision-subclasses"
+path = "../pending/2026-09-12T10-35-38-split-section-into-failure-and-revision-subclasses.toml"
+done = false
+
+[[sub_tasks]]
+slug = "render-the-latest-revision-with-the-task"
+path = "../pending/2026-09-12T10-35-39-render-the-latest-revision-with-the-task.toml"
+done = false
+
+[[sub_tasks]]
+slug = "surface-the-latest-section-and-record-what-completed-a-task"
+path = "../pending/2026-09-12T10-35-39-surface-the-latest-section-and-record-what-completed-a-task.toml"
+done = false
+
+[[sub_tasks]]
+slug = "add-the-recordrevision-subcommand"
+path = "../pending/2026-09-12T10-35-39-add-the-recordrevision-subcommand.toml"
+done = false
+
+[[sub_tasks]]
+slug = "document-section-types-and-the-revision-workflow"
+path = "../pending/2026-09-12T10-35-39-document-section-types-and-the-revision-workflow.toml"
+done = false
+
+# Order matters in part two: 1 before 2 and 3 (both depend on the subclasses),
+# 4 after 1 and 3, 5 last. Branch: task-failure-state.
+#
+# scripts/toml_writer.py and tests/test_toml_writer.py were written directly by
+# Claude before this programme and are not covered by a sub-task.

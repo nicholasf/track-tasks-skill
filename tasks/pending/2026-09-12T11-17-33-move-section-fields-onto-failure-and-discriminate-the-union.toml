@@ -1,0 +1,28 @@
+title = "Move section fields onto Failure and discriminate the union"
+goal = "Section carries only what every section type has, the failure fields live on Failure, and Task.sections parses back into the correct subclass."
+model = "qwen3.8-27b on pond via ask-llm bridge — the one structural step, isolated and small"
+agent = "pond-qwen"
+status = "pending"
+created = "2026-09-12 11:17:33"
+background = "Failure and Revision already exist as subclasses. Section still holds the failure fields, which belong on Failure. This task moves them down and points Task.sections at a discriminated union. It is deliberately the only structural change in this group — two earlier tasks did the rename and the additions."
+changes = ["In scripts/task.py, move agent, model, complexity, outcome and log OFF Section and ONTO Failure. Section is left with only type, at_utc and at_local", "Add agent and complexity to Revision as well. They appear on both subclasses deliberately: they mean different things per type and are not universal", "Change Task.sections from dict[str, Section] to a dict whose values are a union of Failure and Revision, discriminated on the type field", "Update scripts/record_failure.py to construct a Failure instead of a Section", "The discriminator is the point: without it, from_toml rebuilds every section as the base Section and silently drops log and instructions. Add a test that a Failure round-trips through to_toml and from_toml and is STILL a Failure with its log intact, and the same for a Revision with its instructions", "Nothing may hardcode that exactly two section types exist — no if/else branching on failure versus revision. A third type later should need only a new subclass and a union entry"]
+files_to_read = ["scripts/task.py", "scripts/record_failure.py"]
+open_questions = []
+recommended_approach = "Do this as a sequence of small edit_file calls — one to cut the fields from Section, one to add them to Failure, one for Revision, one for the union, one for record_failure.py. Do NOT rewrite the whole file or emit a whole class body in one go: three previous attempts at structural changes in this repository failed by generating a file-sized response and running out of context before any edit was dispatched. Small edits only. Do not explore the repository."
+done_when = ["Section carries only type, at_utc and at_local", "A Failure round-trips and is still a Failure, with log preserved", "A Revision round-trips and is still a Revision, with instructions preserved", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 603 tokens
+- Files: task.py (990), record_failure.py (428) → 1,418 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~14,021 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "local"
+worktree_path = ""
+worktree_branch = ""

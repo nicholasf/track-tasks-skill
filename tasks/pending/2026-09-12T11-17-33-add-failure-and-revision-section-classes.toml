@@ -1,0 +1,28 @@
+title = "Add Failure and Revision section classes"
+goal = "Failure and Revision exist as subclasses of Section, without changing Section or anything that uses it."
+model = "qwen3.8-27b on pond via ask-llm bridge — purely additive, appends two small classes"
+agent = "pond-qwen"
+status = "pending"
+created = "2026-09-12 11:17:33"
+background = "Sections will become typed: a failure records a run that did not finish, a revision records the correction made in response. This task only adds the two classes. Nothing existing changes — Section keeps every field it has, and Task.sections still holds Section. Moving fields and switching the union is a separate, later task."
+changes = ["In scripts/task.py, directly after the existing Section class, add a Failure class that subclasses Section. It declares only: type, typed as Literal['failure'], defaulting to 'failure'", "Directly after that, add a Revision class that subclasses Section. It declares: type, typed as Literal['revision'], defaulting to 'revision'; and instructions, a string defaulting to empty", "Import Literal from typing if it is not already imported", "Change NOTHING else. Do not remove or move any field on Section. Do not change Task.sections. Do not touch record_failure.py or any other file", "Add two tests to tests/test_task.py: that Failure() has type 'failure', and that Revision() has type 'revision' and an instructions field defaulting to empty"]
+files_to_read = ["scripts/task.py"]
+open_questions = []
+recommended_approach = "This is an append. Read scripts/task.py, find where Section ends, and insert two short classes after it with a single edit_file. Then add two short tests. Do not restructure anything. Do not explore the repository."
+done_when = ["Failure and Revision both exist and subclass Section", "Section is unchanged", "Task.sections is unchanged", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 466 tokens
+- Files: task.py (990) → 990 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~13,456 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "local"
+worktree_path = ""
+worktree_branch = ""

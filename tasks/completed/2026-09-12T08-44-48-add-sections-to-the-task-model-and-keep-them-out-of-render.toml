@@ -1,0 +1,33 @@
+title = "Add sections to the Task model and keep them out of render"
+goal = "A Task can carry numbered sections recording what happened on a failed attempt, and those sections are never included in the view handed to an executing model."
+model = "qwen3.8-27b on pond via ask-llm bridge — model change plus a render exclusion"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 08:44:48"
+background = "When a task fails, the record of that failure is stored on the task itself as a numbered section. There is no new task and no link field. The sections must not reach the executing model on a retry: the task file is input to that model, so failure logs accumulating in it would inflate the very context budget the retry needs. render is the model-facing view and is already selective — it emits only certain fields — so sections simply must not be added to it."
+changes = ["Add a Section pydantic model in scripts/task.py with these fields, all defaulting to empty: kind, at_utc, at_local, agent, model, complexity, outcome, log", "kind names what the section records, for example 'failure'", "at_utc is an ISO 8601 UTC timestamp; at_local is the same instant rendered in a readable local form with its zone abbreviation. Both are strings on the model — generating them is the record-failure task's job, not this one", "complexity holds the pre-flight rating at the time of the attempt, for example 'L1 ~13,938'; outcome holds a one-line result; log holds longer detail and may be multi-line", "Add a sections field to Task, defaulting to empty, keyed by section number as a string so it serializes as [sections.1], [sections.2] and so on", "Do NOT add sections to render — this is the point of the task. Add a test asserting that a task with a populated section renders without that section's content appearing anywhere in the output", "Add a test that a Task with two sections round-trips through to_toml and from_toml unchanged"]
+files_to_read = ["scripts/task.py", "tests/test_task.py"]
+open_questions = ["Whether section numbering starts at 1 or 0 is not specified elsewhere. Use 1, and say so in results."]
+recommended_approach = "Read task.py first and note how render selects fields — the exclusion is achieved by not writing code, so the test is what actually enforces it. The nested-table serialization this depends on is handled by toml_writer; do not add serialization logic here."
+done_when = ["Task.sections exists and defaults to empty", "A Task with sections round-trips through to_toml and from_toml unchanged", "Serialized output uses [sections.1] style headers", "A test proves render output contains no section content", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 675 tokens
+- Files: task.py (1,049), test_task.py (1,767) → 2,816 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~15,491 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "198 pass, 0 fail. Up from 193; 5 new covering round-trip with sections, the [sections.1] header form, and render exclusion."
+files_changed = "scripts/task.py (+47/-25 cumulative with the previous task), tests/test_task.py (+59)"
+summary = "Executed by qwen3.8-27b on pond via ask-llm bridge. Added a Section model with kind, at_utc, at_local, agent, model, complexity, outcome and log, all defaulting to empty, and a sections field on Task keyed by section number as a string so it serializes as [sections.1]. Sections are deliberately absent from render(), so a retry's context budget is not consumed by the history of previous failures — verified directly: a task carrying a section renders without either its log or its outcome appearing. Round-trip through to_toml and from_toml is equality-preserving."

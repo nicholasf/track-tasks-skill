@@ -1,0 +1,33 @@
+title = "Add the failed state to the task workflow"
+goal = "A task that was attempted and did not succeed can be represented as failed, and can move from there to a retry or to deprecation."
+model = "qwen3.8-27b on pond via ask-llm bridge — small single-module change"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 08:43:32"
+background = "TaskState today has pending, in_progress, completed, deprecated and hallucinated, and the last three are terminal. There is no way to record that a task was attempted, did not work, and is still wanted. A failure is not a hallucination — the agent did not fabricate anything, it ran and did not finish — and it is not a deprecation, because the work is still needed."
+changes = ["Add a failed member to TaskState in scripts/workflow.py", "Add these transitions: in_progress to failed; failed to pending, which is the retry path; failed to deprecated, for abandoning the work", "failed is not terminal but has no self-transition — a task staying failed simply does not move", "Do not allow pending to failed: a task that was never attempted cannot have failed", "Do not allow failed to completed: a retry goes through pending and in_progress first", "Add tests to tests/test_workflow.py for each new edge, and for the two rejected edges above raising ValueError"]
+files_to_read = ["scripts/workflow.py", "tests/test_workflow.py"]
+open_questions = []
+recommended_approach = "The TRANSITIONS dict is the single source of truth and the transition function reads from it — adding the state and its edges is the whole change. Follow the existing test style for the new cases."
+done_when = ["TaskState.failed exists", "in_progress to failed, failed to pending, and failed to deprecated are all permitted", "pending to failed and failed to completed both raise ValueError", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 470 tokens
+- Files: workflow.py (216), test_workflow.py (380) → 596 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~13,066 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "193 pass, 0 fail. Up from 188; 5 new tests covering each new edge and both rejected edges raising ValueError."
+files_changed = "scripts/workflow.py (+4/-1), tests/test_workflow.py (+23)"
+summary = "Executed by qwen3.8-27b on pond via ask-llm bridge. Added TaskState.failed with three edges: in_progress to failed, failed to pending for a retry, and failed to deprecated for abandoning the work. pending to failed and failed to completed are both rejected, so a task cannot fail before being attempted and a retry must go back through pending and in_progress. failed is non-terminal with no self-edge, so a task awaiting judgement simply does not move."

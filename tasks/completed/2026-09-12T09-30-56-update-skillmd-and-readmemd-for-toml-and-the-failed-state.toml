@@ -1,0 +1,33 @@
+title = "Update SKILL.md and README.md for TOML and the failed state"
+goal = "SKILL.md describes task files as TOML rather than Markdown, and both files list the failed state."
+model = "qwen3.8-27b on pond via ask-llm bridge — two small documentation files"
+agent = "pond-qwen"
+status = "completed"
+created = "2026-09-12 09:30:56"
+background = "SKILL.md is a short frontmatter stub that points at command.md; its last paragraph still says task files are Markdown. They have been TOML since commit 38dff12. README.md carries the fuller description and lists the task states. The substantive record-failure documentation goes in command.md and is a separate task — do not write it here."
+changes = ["In SKILL.md, correct the statement that tasks are Markdown files: task files are TOML in tasks/pending/ and tasks/completed/. The development-log.md entry remains Markdown, so keep that distinction clear", "In SKILL.md, keep the frontmatter block exactly as it is — name, description, argument-hint and depends_on are all load-bearing", "In README.md, add failed wherever the task states are listed, described as a task that was attempted and did not finish, still wanted, staying in tasks/pending", "In README.md, correct any statement that task files are Markdown, if one is present", "Do NOT edit command.md — that is a separate task", "Do not restructure or reword anything beyond these corrections"]
+files_to_read = ["SKILL.md", "README.md"]
+open_questions = []
+recommended_approach = "Read only SKILL.md and README.md. Do not explore the repository — no git log, no directory listings, no reading of scripts or command.md. The context window is 32k and a previous attempt at documenting this filled it with reading and had no room left to make a single edit. Use edit_file per change."
+done_when = ["SKILL.md says task files are TOML, not Markdown", "SKILL.md's frontmatter block is unchanged", "README.md lists failed among the task states", "command.md is unchanged"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 502 tokens
+- Files: SKILL.md (299), README.md (2,447) → 2,746 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~15,248 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "ask_llm"
+worktree_path = ""
+worktree_branch = ""
+
+[results]
+tests = "209 pass, 0 fail. Documentation change, so the suite is unaffected; the show claim was verified by running main.py show failed, which errors."
+files_changed = "SKILL.md (+1/-1), README.md (+3/-1)"
+summary = "Executed by qwen3.8-27b on pond via ask-llm bridge, with one correction by Claude. Model's work: SKILL.md now says task files are TOML rather than Markdown, keeping the distinction that development-log.md remains Markdown, with the frontmatter block untouched. README.md gained failed to its state table, described as attempted but unfinished, still wanted, staying in tasks/pending. Claude's correction: the model also added failed to README's list of states accepted by the show subcommand, but show lists by directory and a failed task has no directory of its own, so main.py show failed is rejected by argparse. Corrected the line to say so explicitly rather than removing the mention."

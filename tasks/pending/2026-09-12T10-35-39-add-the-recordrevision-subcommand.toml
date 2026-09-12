@@ -1,0 +1,30 @@
+type = "sub-task"
+parent = "2026-09-12T08-45-00-task-failure-state.toml"
+title = "Add the record-revision subcommand"
+goal = "A correction to a failed task can be recorded from the command line as a revision section, returning the task to pending."
+model = "qwen3.8-27b on pond via ask-llm bridge — new script following record_failure.py"
+agent = "pond-qwen"
+status = "pending"
+created = "2026-09-12 10:35:39"
+background = "When a task fails, a judgement follows: examine what happened, then either abandon the task or correct it and run it again. record-failure captures the first half. This captures the second — the correction itself, written as instructions the next attempt will read. The task's own text is not edited; the correction lives in the revision."
+changes = ["Add scripts/record_revision.py with a record_revision function taking the task path, the agent making the revision, a complexity re-estimate, the instructions, and cwd", "Validate the transition from failed to pending using workflow.transition — a revision is what moves a task out of failed, so recording one returns it to pending, ready to run again", "Append a Revision section keyed by the next unused number, continuing the same sequence as failures rather than starting its own", "Set at_utc and at_local from a single datetime.now in UTC, with at_local derived through zoneinfo and formatted readably as record_failure.py does — do not duplicate the formatting logic if it can be shared", "Update latest_section, as record_failure.py does", "The task file does not move — it is already in tasks/pending and stays there", "Append an entry to development-log.md if that file exists", "Wire a record-revision subcommand into scripts/main.py following the existing add_parser pattern, with arguments for agent, complexity, instructions and cwd", "Add tests/test_record_revision.py covering: the status returning to pending; the section being a Revision with its instructions intact; numbering continuing after an existing failure so a revision following failure 1 is section 2; latest_section updating; the file staying in tasks/pending; and recording a revision on a task that is not failed raising ValueError"]
+files_to_read = ["scripts/record_failure.py", "scripts/main.py", "tests/test_record_failure.py"]
+open_questions = ["record_failure.py and record_revision.py will share timestamp formatting and next-section-number logic. Extracting shared helpers is preferable to duplicating them, but where those helpers live is not specified. Choose, and say what you chose in results."]
+recommended_approach = "Read only the three files listed. record_failure.py is the direct model for this — the shape is the same apart from the transition target and the section type. Do not explore the repository. Use write_file only for the two genuinely new files."
+done_when = ["record-revision appears in main.py's subcommands", "Recording a revision on a failed task returns it to pending", "The section is a Revision with its instructions preserved through a round-trip", "A revision following failure 1 is numbered 2", "latest_section is updated", "Recording a revision on a task that is not failed raises ValueError", "The full suite passes: .venv/bin/python3 -m pytest -q"]
+preflight = '''
+## Pre-flight ⏳ L1 (local)
+
+- Spec: 724 tokens
+- Files: record_failure.py (428), main.py (3,029), test_record_failure.py (1,254) → 4,711 total
+- Reasoning buffer: 12,000 (estimated)
+- Estimated total: ~17,435 tokens
+- Complexity: L1 — fits comfortably — well within context window
+'''
+deprecated_by = ""
+hallucinating_agent = ""
+hallucination_reporter = ""
+hallucination_reason = ""
+execution_mode = "local"
+worktree_path = ""
+worktree_branch = ""
