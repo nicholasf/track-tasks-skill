@@ -7,11 +7,13 @@ class TaskState(StrEnum):
     completed = 'completed'
     deprecated = 'deprecated'
     hallucinated = 'hallucinated'
+    failed = 'failed'
 
 
 TRANSITIONS: dict[TaskState, set[TaskState]] = {
     TaskState.pending: {TaskState.in_progress, TaskState.deprecated, TaskState.hallucinated},
-    TaskState.in_progress: {TaskState.completed, TaskState.deprecated, TaskState.hallucinated},
+    TaskState.in_progress: {TaskState.completed, TaskState.deprecated, TaskState.hallucinated, TaskState.failed},
+    TaskState.failed: {TaskState.pending, TaskState.deprecated},
     TaskState.completed: set(),
     TaskState.deprecated: set(),
     TaskState.hallucinated: set(),

@@ -216,3 +216,62 @@ def test_to_toml_omits_results_table_when_empty():
 def test_to_toml_escapes_quotes_and_backslashes():
     task = Task.model_validate({**_minimal(), 'background': 'say "hi" \\ bye'})
     assert from_toml(to_toml(task)).background == 'say "hi" \\ bye'
+
+
+# ── sections ──────────────────────────────────────────────────────────────────
+
+def _section_payload() -> dict:
+    return {
+        'type': 'failure',
+        'at_utc': '2026-09-12T08:44:48Z',
+        'at_local': '2026-09-12 04:44:48 EDT',
+        'agent': 'pond-qwen',
+        'model': 'qwen3.8-27b',
+        'complexity': 'L1 ~13,938',
+        'outcome': 'Tests failed: 2 errors',
+        'log': 'Traceback (most recent call last):\n  File "x.py", line 1\nAssertionError: boom',
+    }
+
+
+def test_sections_default_to_empty():
+    task = Task.model_validate(_minimal())
+    assert task.sections == {}
+
+
+def test_render_excludes_sections():
+    task = Task.model_validate({
+        **_minimal(),
+        'sections': {'1': _section_payload()},
+    })
+    output = render(task)
+    assert 'failure' not in output
+    assert '2026-09-12T08:44:48Z' not in output
+    assert '2026-09-12 04:44:48 EDT' not in output
+    assert 'L1 ~13,938' not in output
+    assert 'Tests failed: 2 errors' not in output
+    assert 'AssertionError: boom' not in output
+    assert 'Traceback' not in output
+    assert '## Sections' not in output
+
+
+def test_to_toml_uses_numbered_section_headers():
+    task = Task.model_validate({
+        **_minimal(),
+        'sections': {'1': _section_payload(), '2': _section_payload()},
+    })
+    text = to_toml(task)
+    assert '[sections.1]' in text
+    assert '[sections.2]' in text
+
+
+def test_to_toml_omits_sections_table_when_empty():
+    task = Task.model_validate(_minimal())
+    assert '[sections' not in to_toml(task)
+
+
+def test_to_toml_from_toml_roundtrip_with_sections():
+    task = Task.model_validate({
+        **_minimal(),
+        'sections': {'1': _section_payload(), '2': _section_payload()},
+    })
+    assert from_toml(to_toml(task)) == task

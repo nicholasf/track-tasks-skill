@@ -3,6 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
+import toml_writer
 from workflow import TaskState
 
 
@@ -11,6 +12,23 @@ class ExecutionMode(StrEnum):
     ask_agent = 'ask_agent'
     local = 'local'
     local_worktree = 'local_worktree'
+
+
+class Section(BaseModel):
+    """A numbered record of what happened on a failed attempt.
+
+    Stored on the task itself — no new task, no link field. Sections are never
+    rendered: render is the model-facing view, and failure logs accumulating in
+    it would inflate the very context budget a retry needs.
+    """
+    type: str = ''
+    at_utc: str = ''
+    at_local: str = ''
+    agent: str = ''
+    model: str = ''
+    complexity: str = ''
+    outcome: str = ''
+    log: str = ''
 
 
 class Task(BaseModel):
@@ -28,6 +46,9 @@ class Task(BaseModel):
     done_when: list[str] = []
     preflight: str = ''
     results: dict[str, str] = {}
+    # Numbered records of failed attempts, keyed by section number as a string
+    # so they serialize as [sections.1], [sections.2], ... Never rendered.
+    sections: dict[str, Section] = {}
     deprecated_by: str = ''
     hallucinating_agent: str = ''
     hallucination_reporter: str = ''
@@ -37,33 +58,9 @@ class Task(BaseModel):
     worktree_branch: str = ''
 
 
-def _format_toml_value(value) -> str:
-    if isinstance(value, bool):
-        return 'true' if value else 'false'
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, list):
-        return '[' + ', '.join(_format_toml_value(v) for v in value) + ']'
-    text = str(value)
-    if '\n' in text:
-        # Literal multi-line string — no escape processing, so prose round-trips verbatim.
-        return f"'''\n{text}'''"
-    escaped = text.replace('\\', '\\\\').replace('"', '\\"')
-    return f'"{escaped}"'
-
-
 def to_toml(task: Task) -> str:
     """Serialize a Task to TOML — the on-disk storage format for task files."""
-    data = task.model_dump(mode='json')
-    results = data.pop('results')
-
-    lines = [f'{key} = {_format_toml_value(value)}' for key, value in data.items()]
-
-    if results:
-        lines += ['', '[results]']
-        lines += [f'{key} = {_format_toml_value(value)}' for key, value in results.items()]
-
-    return '\n'.join(lines) + '\n'
+    return toml_writer.dumps(task)
 
 
 def from_toml(text: str) -> Task:
