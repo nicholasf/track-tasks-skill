@@ -2,7 +2,7 @@ title = "Make a programme a task that lists other tasks"
 goal = "A programme is an ordinary Task carrying a list of other tasks, so it parses, shows, and round-trips like any other."
 model = "qwen3.8-27b on pond via ask-llm bridge — one field and a guard"
 agent = "pond-qwen"
-status = "pending"
+status = "completed"
 created = "2026-09-12 11:17:33"
 background = "Programme files are currently a hand-authored convention with no model behind them: they carry title, goal and sub_tasks but no model or agent, so Task.model_validate rejects them. This breaks main.py show, which globs every .toml in a bucket directory and parses each one as a Task — a single programme file in tasks/pending makes the whole command raise. A programme needs no separate type: it is just a task that happens to list other tasks."
 changes = ["Add sub_tasks to Task in scripts/task.py: a list of strings defaulting to empty, holding the paths of the tasks the programme coordinates", "Keep it simple — a list of path strings, not a nested model. A programme is a task with sub_tasks populated; an ordinary task leaves it empty", "Do not add a separate programme type or class", "Do not add sub_tasks to render", "In scripts/show.py, make parse_task tolerant: if a file cannot be parsed as a Task, skip it rather than raising, so one malformed file cannot break the whole listing", "Add tests: a Task with sub_tasks round-trips through to_toml and from_toml; sub_tasks defaults to empty; sub_tasks does not appear in render output; and show skips a file that cannot be parsed instead of raising"]
@@ -19,6 +19,9 @@ preflight = '''
 - Estimated total: ~14,771 tokens
 - Complexity: L1 — fits comfortably — well within context window
 '''
+latest_section = ""
+completed_by_section = ""
+sub_tasks = []
 deprecated_by = ""
 hallucinating_agent = ""
 hallucination_reporter = ""
@@ -26,3 +29,8 @@ hallucination_reason = ""
 execution_mode = "local"
 worktree_path = ""
 worktree_branch = ""
+
+[results]
+tests = "234 pass, 0 fail"
+files_changed = "see commit"
+summary = "Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks."

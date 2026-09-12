@@ -16,7 +16,10 @@ from task import from_toml
 def parse_task(path: Path) -> dict:
     try:
         task = from_toml(path.read_text())
-    except OSError:
+    except Exception:
+        # Any file that is not a valid Task — a malformed file, or a hand
+        # authored one predating a schema change — is skipped rather than
+        # taking the whole listing down with it.
         return {}
 
     created_raw = task.created or '—'

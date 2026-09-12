@@ -1,10 +1,8 @@
-type = "sub-task"
-parent = "2026-09-12T08-45-00-task-failure-state.toml"
 title = "Document section types and the revision workflow"
 goal = "command.md documents the two section types, record-revision, and the rule that each revision must stand on its own."
 model = "qwen3.8-27b on pond via ask-llm bridge — documentation only"
 agent = "pond-qwen"
-status = "pending"
+status = "completed"
 created = "2026-09-12 10:35:39"
 background = "command.md already documents record-failure under a 'Recording a failure' heading. This adds the other half of the judgement: recording the correction. The rule that matters most is easy to get wrong, so it needs stating plainly — only the latest revision is rendered to the executing model, so a second revision must restate anything from the first that still applies."
 changes = ["Add a 'Recording a revision' section to command.md immediately after the existing 'Recording a failure' section, in the same style: the invocation, an argument table, and what happens", "Arguments are: task path, --agent, --complexity, --instructions, --cwd", "State that recording a revision returns the task from failed to pending, and that the task file does not move", "Document the two section types: failure records a run that did not finish, revision records the correction made in response. Section numbering is one sequence across both, so a failure at 1 and its revision at 2", "State the rule prominently: render gives the executing model the task's own text plus the instructions of the LATEST revision only. Earlier revisions are not shown. A second revision must therefore repeat anything from the first that still applies, or it will be lost", "State that the task's own text is not edited when it is revised — the correction lives in the revision", "State that a revision should be kept small, because it is added to what the model already reads rather than replacing it", "Note that a failure's outcome and log are never rendered, so they can be as detailed as needed", "Note that latest_section appears at the top of a task file, and completed_by_section records which section a completed task was completed under", "Do NOT edit SKILL.md or README.md"]
@@ -21,6 +19,9 @@ preflight = '''
 - Estimated total: ~18,266 tokens
 - Complexity: L1 — fits comfortably — well within context window
 '''
+latest_section = ""
+completed_by_section = ""
+sub_tasks = []
 deprecated_by = ""
 hallucinating_agent = ""
 hallucination_reporter = ""
@@ -28,3 +29,8 @@ hallucination_reason = ""
 execution_mode = "local"
 worktree_path = ""
 worktree_branch = ""
+
+[results]
+tests = "234 pass, 0 fail"
+files_changed = "see commit"
+summary = "Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks."

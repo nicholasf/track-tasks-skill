@@ -1,7 +1,8 @@
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 
-from task import Section, from_toml, to_toml
+from record_revision import timestamps
+from task import Failure, from_toml, next_section_number, to_toml
 from workflow import TaskState, transition
 
 
@@ -24,23 +25,24 @@ def record_failure(
     task = from_toml(task_path.read_text())
     transition(task.status, TaskState.failed)
 
-    now = datetime.now(timezone.utc)
-    section = Section(
-        type='failure',
-        at_utc=now.isoformat(timespec='seconds'),
-        # Readable local form with the zone abbreviation — at_utc already
-        # covers the sortable, unambiguous case, so this one is for a person.
-        at_local=now.astimezone().strftime('%Y-%m-%d %H:%M:%S %Z'),
+    at_utc, at_local = timestamps()
+    section = Failure(
+        at_utc=at_utc,
+        at_local=at_local,
         agent=agent,
         model=model,
         complexity=complexity,
         outcome=outcome,
         log=log,
     )
-    next_number = max((int(key) for key in task.sections), default=0) + 1
-    sections = {**task.sections, str(next_number): section}
+    number = next_section_number(task)
+    sections = {**task.sections, number: section}
 
-    task = task.model_copy(update={'status': TaskState.failed, 'sections': sections})
+    task = task.model_copy(update={
+        'status': TaskState.failed,
+        'sections': sections,
+        'latest_section': number,
+    })
     # Unlike deprecate and complete, the file does not move: a failed task is
     # still wanted, so it stays in tasks/pending.
     task_path.write_text(to_toml(task))

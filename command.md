@@ -463,9 +463,74 @@ short is a failure, a claimed completion with no real output is a hallucination.
 From `failed` a judgement is required: retry by returning the task to `pending`, or
 deprecate to abandon it. Staying `failed` is a valid resting state while undecided.
 
-Sections are excluded from the rendered view handed to an executing model, so failure
-history does not consume the retry context budget. A section may later be spilled to
-`tasks/<task-slug>.sections/<section>.md`; this is currently manual.
+A failure's `outcome` and `log` are never rendered to an executing model, so they can
+be as detailed as needed — tool-call counts, token progressions, whatever diagnoses it.
+
+## Recording a revision
+
+A failure calls for a judgement: examine what happened, then either abandon the task or
+correct it and run it again. `record-failure` captures the first half; `record-revision`
+captures the second — the correction itself, written as instructions the next attempt
+will read. It returns the task from `failed` to `pending`.
+
+**The task's own text is not edited.** The correction lives in the revision.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  record-revision \
+  tasks/pending/<timestamp>-<slug>.toml \
+  --agent "claude" \
+  --complexity "L1 re-estimated after the correction" \
+  --instructions "Edit command.md, not SKILL.md. SKILL.md is a 19-line stub." \
+  --cwd "$(pwd)"
+```
+
+| Argument | Required | Description |
+|---|---|---|
+| `task` | yes | Path to the task file |
+| `--agent` | yes | Who made the revision |
+| `--complexity` | yes | Re-estimate after the correction |
+| `--instructions` | yes | The correction — the only section content ever rendered |
+| `--cwd` | no | Project root (default: inferred from task path) |
+
+### Only the latest revision is rendered
+
+`render` gives the executing model the task's own text plus the `instructions` of the
+**latest** revision. Earlier revisions are not shown.
+
+**So a second revision must restate anything from the first that still applies**, or it
+is lost. This is easy to get wrong and hard to notice.
+
+Keep a revision small. It is *added* to what the model already reads rather than
+replacing it, so every revision makes the next attempt's input larger. That is the
+opposite pressure from a failure's log, which is excluded and can be verbose.
+
+### Section types
+
+| Type | Records | Rendered? |
+|---|---|---|
+| `failure` | A run that was attempted and did not finish | No |
+| `revision` | The correction made in response | Latest only |
+
+Numbering is **one sequence across both types** — a failure at 1 and its revision at 2,
+not two separate sequences. A third type needs only a new subclass and an entry in
+`AnySection`; nothing branches on how many types exist.
+
+A section may later be spilled to `tasks/<task-slug>.sections/<section>.md`; this is
+currently manual.
+
+### Header fields
+
+`latest_section` sits at the top of a task file so a reader sees at a glance that a task
+has failed and been revised. `completed_by_section` records which section a completed
+task was finally completed under. Neither is rendered.
+
+## Programme tasks
+
+A programme is an ordinary task carrying `sub_tasks` — a list of the paths of the tasks
+it coordinates. There is no separate programme type: a task with `sub_tasks` populated
+is a programme, and one without is not.
 
 ## Directory structure
 

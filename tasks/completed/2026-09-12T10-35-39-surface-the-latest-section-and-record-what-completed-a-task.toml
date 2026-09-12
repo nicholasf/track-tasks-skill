@@ -1,10 +1,8 @@
-type = "sub-task"
-parent = "2026-09-12T08-45-00-task-failure-state.toml"
 title = "Surface the latest section and record what completed a task"
 goal = "A task file shows its most recent section number at the top, and a completed task records which section it was completed under."
 model = "qwen3.8-27b on pond via ask-llm bridge — two small fields and their wiring"
 agent = "pond-qwen"
-status = "pending"
+status = "completed"
 created = "2026-09-12 10:35:39"
 background = "Sections live below the task's own fields, so a task that has failed and been revised gives no sign of it at the top of the file. Two scalar fields fix that: one naming the latest section, one recording which section the task was eventually completed under. Together they let a reader see at a glance that a task took two attempts and which correction carried it."
 changes = ["Add latest_section to Task in scripts/task.py, a string defaulting to empty, holding the number of the highest-numbered section", "Add completed_by_section to Task, a string defaulting to empty", "Both are scalars and must serialize above the section tables — the writer already guarantees that ordering, so no serializer change is needed", "Update scripts/record_failure.py to set latest_section to the number of the section it just added", "In scripts/complete.py, set completed_by_section to the current value of latest_section when a task is completed, leaving it empty if the task has no sections", "Do not add either field to render — they are for a person reading the file, not for the executing model", "Add tests: recording a failure sets latest_section; recording a second failure updates it; completing a task with sections sets completed_by_section to the latest section number; completing a task with no sections leaves it empty; neither field appears in render output"]
@@ -21,6 +19,9 @@ preflight = '''
 - Estimated total: ~15,017 tokens
 - Complexity: L1 — fits comfortably — well within context window
 '''
+latest_section = ""
+completed_by_section = ""
+sub_tasks = []
 deprecated_by = ""
 hallucinating_agent = ""
 hallucination_reporter = ""
@@ -28,3 +29,8 @@ hallucination_reason = ""
 execution_mode = "local"
 worktree_path = ""
 worktree_branch = ""
+
+[results]
+tests = "234 pass, 0 fail"
+files_changed = "see commit"
+summary = "Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks."

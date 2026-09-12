@@ -2,7 +2,7 @@ title = "Move section fields onto Failure and discriminate the union"
 goal = "Section carries only what every section type has, the failure fields live on Failure, and Task.sections parses back into the correct subclass."
 model = "qwen3.8-27b on pond via ask-llm bridge — the one structural step, isolated and small"
 agent = "pond-qwen"
-status = "pending"
+status = "completed"
 created = "2026-09-12 11:17:33"
 background = "Failure and Revision already exist as subclasses. Section still holds the failure fields, which belong on Failure. This task moves them down and points Task.sections at a discriminated union. It is deliberately the only structural change in this group — two earlier tasks did the rename and the additions."
 changes = ["In scripts/task.py, move agent, model, complexity, outcome and log OFF Section and ONTO Failure. Section is left with only type, at_utc and at_local", "Add agent and complexity to Revision as well. They appear on both subclasses deliberately: they mean different things per type and are not universal", "Change Task.sections from dict[str, Section] to a dict whose values are a union of Failure and Revision, discriminated on the type field", "Update scripts/record_failure.py to construct a Failure instead of a Section", "The discriminator is the point: without it, from_toml rebuilds every section as the base Section and silently drops log and instructions. Add a test that a Failure round-trips through to_toml and from_toml and is STILL a Failure with its log intact, and the same for a Revision with its instructions", "Nothing may hardcode that exactly two section types exist — no if/else branching on failure versus revision. A third type later should need only a new subclass and a union entry"]
@@ -19,6 +19,9 @@ preflight = '''
 - Estimated total: ~14,021 tokens
 - Complexity: L1 — fits comfortably — well within context window
 '''
+latest_section = "2"
+completed_by_section = "2"
+sub_tasks = []
 deprecated_by = ""
 hallucinating_agent = ""
 hallucination_reporter = ""
@@ -26,3 +29,28 @@ hallucination_reason = ""
 execution_mode = "local"
 worktree_path = ""
 worktree_branch = ""
+
+[results]
+tests = "234 pass, 0 fail (from 211). Includes round-trip tests proving a Failure returns as a Failure with its log, and a Revision as a Revision with its instructions."
+files_changed = "scripts/task.py, scripts/record_failure.py, tests/test_task.py"
+summary = "Implemented directly by Claude after four delegated attempts failed. Section reduced to type/at_utc/at_local; agent, model, complexity, outcome and log moved onto Failure; agent and complexity added to Revision. Task.sections is now AnySection, a union discriminated on type, so from_toml restores the concrete subclass instead of silently downgrading to a bare Section. record_failure.py constructs a Failure. Added next_section_number, latest_section_number and latest_revision helpers, all filtering by type rather than branching on how many types exist."
+
+[sections]
+
+[sections.1]
+type = "failure"
+at_utc = "2026-09-12T02:04:04+00:00"
+at_local = "2026-09-12 12:04:04 AEST"
+agent = "pond-qwen"
+model = "qwen3.8-27b:latest"
+complexity = "L1, ~14,000 predicted"
+outcome = "Five clean round trips reading files, then one ~20,700-token response over 8 minutes containing no tool call; stopped at 30,588 NOT truncated"
+log = "11 tool calls: 6 read_file, 3 bash, 1 grep, 1 find_files. Zero edit_file. Tokens per turn: 5,700 / 5,373 / 8,384 / 9,795 / 9,870 / 30,588. The first five turns were normal. The sixth ran 11:55:04 to 12:03:03 and produced roughly 20,700 tokens. Crucially truncated = 0, unlike the three earlier failures which all ended at 32,767 truncated = 1. The model COMPLETED a 20k response containing no tool call — it is not being cut off before it can emit one. It appears to answer structural change requests by writing code out as text rather than calling edit_file. Tried and failed: naming the exact edit sequence in the prompt, forbidding write_file, forbidding exploration, splitting to a single structural step, and warning in the spec that three previous attempts failed this way. Fourth failure of this shape. The additive half of the same work succeeded through the same bridge minutes earlier with 4 edit_file calls, so bridge and model are both capable — the variable is restructuring existing code versus appending to it."
+
+[sections.2]
+type = "revision"
+at_utc = "2026-09-12T02:14:23+00:00"
+at_local = "2026-09-12 12:14:23 AEST"
+agent = "claude"
+complexity = "n/a — done directly"
+instructions = "Superseded: Claude implemented this directly after four delegated attempts failed. No further attempt needed."

@@ -42,3 +42,35 @@ happened. Written when there is something to say; never parsed back.
 ## 2026-09-12 — Add Failure and Revision section classes
 
 - Executed by qwen3.8-27b on pond via the ask-llm bridge. Added Failure and Revision as subclasses of Section in scripts/task.py: Failure declares only its type literal, Revision declares its type literal plus an instructions field defaulting to empty. Imported Literal from typing. Purely additive as specified — Section keeps all eight of its fields and Task.sections still holds Section, so the two new classes are defined but not yet used. Moving fields onto Failure and switching to a discriminated union is the next task. Verified independently: Section unchanged, Task.sections still dict[str, Section], Failure().type is 'failure', Revision().type is 'revision'.
+
+## 2026-09-12 — Move section fields onto Failure and discriminate the union (failed)
+
+- Five clean round trips reading files, then one ~20,700-token response over 8 minutes containing no tool call; stopped at 30,588 NOT truncated
+
+## 2026-09-12 — Move section fields onto Failure and discriminate the union (revised)
+
+- Superseded: Claude implemented this directly after four delegated attempts failed. No further attempt needed.
+
+## 2026-09-12 — Move section fields onto Failure and discriminate the union
+
+- Implemented directly by Claude after four delegated attempts failed. Section reduced to type/at_utc/at_local; agent, model, complexity, outcome and log moved onto Failure; agent and complexity added to Revision. Task.sections is now AnySection, a union discriminated on type, so from_toml restores the concrete subclass instead of silently downgrading to a bare Section. record_failure.py constructs a Failure. Added next_section_number, latest_section_number and latest_revision helpers, all filtering by type rather than branching on how many types exist.
+
+## 2026-09-12 — Render the latest revision with the task
+
+- Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks.
+
+## 2026-09-12 — Surface the latest section and record what completed a task
+
+- Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks.
+
+## 2026-09-12 — Add the record-revision subcommand
+
+- Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks.
+
+## 2026-09-12 — Document section types and the revision workflow
+
+- Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks.
+
+## 2026-09-12 — Make a programme a task that lists other tasks
+
+- Implemented directly by Claude as part of one pass across the remaining revision-workflow tasks.

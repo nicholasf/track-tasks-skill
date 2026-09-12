@@ -22,6 +22,8 @@ This skill is part of a small ecosystem:
 | `deprecate` | Move a task to `tasks/deprecated/` when it is superseded before completion |
 | `mark-as-hallucinated` | Move a task to `tasks/hallucinated/` when the executing LLM claimed completion but produced no real output |
 | `show` | Print a summary table of tasks in a given state (`pending`, `completed`, `deprecated`, `hallucinated`). Not `failed` — `show` lists by directory, and a failed task stays in `tasks/pending/` |
+| `record-failure` | Record a failed attempt as a numbered section; the task stays in `tasks/pending/` |
+| `record-revision` | Record the correction made in response and return the task to `pending` |
 | `estimate-tokens` | Count token cost across the task spec and referenced files, rate complexity, and estimate duration |
 
 ---
