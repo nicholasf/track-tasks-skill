@@ -420,6 +420,53 @@ Prints the path of the moved file to stdout. Exits non-zero if the task is alrea
 | `--reason` | no | Why it was judged as a hallucination |
 | `--cwd` | no | Project root (default: inferred from task path) |
 
+## Recording a failure
+
+When a delegated agent ran but did not finish the task — for example it ran out of
+context — run `main.py record-failure`. It validates the FSM transition and records
+the failure as a numbered section on the same task file; no new task is created.
+The task file does NOT move — a failed task stays in `tasks/pending/` because it is
+still wanted.
+
+```bash
+"${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/.venv/bin/python3" \
+  "${SKILLS_HOME:-$HOME/.agents/skills}/track-tasks-skill/scripts/main.py" \
+  record-failure \
+  tasks/pending/<timestamp>-<slug>.toml \
+  --agent "pond-qwen" \
+  --model "qwen3.8-27b:latest" \
+  --complexity "L1 ~14,000 predicted" \
+  --outcome "Reached 32,283 tokens and stopped cleanly without editing; not truncated" \
+  --log "17 tool calls: 7 bash, 6 read_file, 3 grep, 1 list_directory. No edit_file calls." \
+  --cwd "$(pwd)"
+```
+
+| Argument | Required | Description |
+|---|---|---|
+| `task` | yes | Path to the task file |
+| `--agent` | yes | Agent handle that ran the task |
+| `--model` | yes | Model that ran the task |
+| `--complexity` | yes | Predicted complexity (e.g. "L1 ~14,000 predicted") |
+| `--outcome` | yes | What happened — where the run stopped and why |
+| `--log` | yes | Tool-call summary and any other diagnostic detail |
+| `--cwd` | no | Project root (default: inferred from task path) |
+
+### Failed versus hallucinated
+
+Use `record-failure` when the agent ran and did not finish — for example it ran out
+of context. Use `mark-as-hallucinated` when the agent reported work it never did.
+Check whether anything actually changed before choosing: a real run that stopped
+short is a failure, a claimed completion with no real output is a hallucination.
+
+### What happens next
+
+From `failed` a judgement is required: retry by returning the task to `pending`, or
+deprecate to abandon it. Staying `failed` is a valid resting state while undecided.
+
+Sections are excluded from the rendered view handed to an executing model, so failure
+history does not consume the retry context budget. A section may later be spilled to
+`tasks/<task-slug>.sections/<section>.md`; this is currently manual.
+
 ## Directory structure
 
 ```
@@ -430,5 +477,8 @@ tasks/
   hallucinated/ # tasks where the executing LLM hallucinated a solution
 development-log.md
 ```
+
+Failed tasks have no directory of their own — a failed task stays in `pending/`
+because it is still wanted.
 
 Create these if they do not exist.

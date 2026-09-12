@@ -21,7 +21,7 @@ This skill is part of a small ecosystem:
 | `complete` | Move a task to `tasks/completed/` and record a summary in `development-log.md` |
 | `deprecate` | Move a task to `tasks/deprecated/` when it is superseded before completion |
 | `mark-as-hallucinated` | Move a task to `tasks/hallucinated/` when the executing LLM claimed completion but produced no real output |
-| `show` | Print a summary table of tasks in a given state (`pending`, `completed`, `deprecated`, `hallucinated`) |
+| `show` | Print a summary table of tasks in a given state (`pending`, `completed`, `deprecated`, `hallucinated`). Not `failed` — `show` lists by directory, and a failed task stays in `tasks/pending/` |
 | `estimate-tokens` | Count token cost across the task spec and referenced files, rate complexity, and estimate duration |
 
 ---
@@ -167,6 +167,7 @@ The duration estimate comes from `estimated_total ÷ tok/s`, where throughput is
 | `completed` | `tasks/completed/` | Successfully finished |
 | `deprecated` | `tasks/deprecated/` | Superseded before completion |
 | `hallucinated` | `tasks/hallucinated/` | The executing LLM claimed to complete the task but produced no real output |
+| `failed` | `tasks/pending/` | Attempted but did not finish — still wanted, so it stays in `tasks/pending/` |
 
 A task is marked `hallucinated` when the executing LLM reports that it completed the work — describing changes, tests, and results — but no actual output exists: no files written, no diff produced, no tests run. The remote agent may return a confident, detailed summary that is entirely fabricated.
 
