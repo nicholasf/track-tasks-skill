@@ -64,6 +64,19 @@ class Revision(Section):
 AnySection = Annotated[Failure | Revision, Field(discriminator='type')]
 
 
+class SubTask(BaseModel):
+    """One task a programme coordinates.
+
+    `done` is the programme's view of that task, kept beside the path so a
+    reader sees the whole programme's state in one file rather than opening
+    each sub-task to find out. It duplicates the sub-task's own status
+    deliberately: the sub-task stays the authority, and this is the index.
+    """
+    slug: str = ''
+    path: str = ''
+    done: bool = False
+
+
 class Task(BaseModel):
     title: str
     goal: str
@@ -92,9 +105,10 @@ class Task(BaseModel):
     # completed under. Both for a person reading the file; neither is rendered.
     latest_section: str = ''
     completed_by_section: str = ''
-    # Paths of the tasks this one coordinates. A programme is simply a task
-    # with these populated; an ordinary task leaves them empty. Not rendered.
-    sub_tasks: list[str] = []
+    # The tasks this one coordinates, as [[sub_tasks]] rows. A programme is
+    # simply a task with these populated; an ordinary task leaves them empty.
+    # Not rendered.
+    sub_tasks: list[SubTask] = []
     deprecated_by: str = ''
     hallucinating_agent: str = ''
     hallucination_reporter: str = ''
