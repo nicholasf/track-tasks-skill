@@ -137,14 +137,16 @@ deprecating a task does **not** remove its worktree automatically — `complete`
 (`git worktree remove <path>`) so it isn't silently forgotten. `show` includes a `Mode` column so
 you can see what's running where across many concurrent tasks.
 
-`--branch` isn't only for `local_worktree`. Passed with any other mode, it's recorded on the
-task's `branch` field as a plain instruction — which branch the executing agent should create or
-check out — with no local worktree created and nothing enforced. This is for cases like a remote
-`ask_llm`/`ask_agent` run where the branch (and whether it gets its own worktree at all) is the
+`--branch` and `--worktree-path` aren't only for `local_worktree`. Passed with any other mode,
+they're recorded on the task's `branch` and `worktree_path` fields as a plain instruction — which
+branch the executing agent should create or check out, and where it might put its own worktree if
+it makes one — with nothing created or enforced locally. This is for cases like a remote
+`ask_llm`/`ask_agent` run where the branch, and whether it gets its own worktree at all, is the
 executing agent's own concern, not the local orchestrator's:
 
 ```
-main.py start tasks/pending/<task>.toml --mode ask_agent --branch task/try-remote-worktree
+main.py start tasks/pending/<task>.toml --mode ask_agent \
+  --branch task/try-remote-worktree --worktree-path ../wt-experiment
 ```
 
 ---
