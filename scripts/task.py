@@ -116,6 +116,14 @@ class Task(BaseModel):
     execution_mode: ExecutionMode = ExecutionMode.local
     worktree_path: str = ''
     worktree_branch: str = ''
+    # The branch the executing agent should create or check out for this
+    # task's work, regardless of execution_mode — unlike worktree_path/
+    # worktree_branch, which only get set by `start` for local_worktree mode,
+    # this is a plain instruction any mode (including a remote ask_llm or
+    # ask_agent run with no local worktree involved) can read and act on.
+    # Whether that agent isolates the branch in its own worktree is its own
+    # call, not something this field decides.
+    branch: str = ''
 
 
 def to_toml(task: Task) -> str:
@@ -138,6 +146,9 @@ def render(task: Task) -> str:
         f'**Status:** {task.status}',
         '',
     ]
+
+    if task.branch:
+        parts += [f'**Branch:** `{task.branch}`', '']
 
     _section(parts, 'Goal', task.goal)
 

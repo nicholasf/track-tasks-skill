@@ -238,7 +238,10 @@ def main() -> None:
                    help='Execution mode: ask_llm, ask_agent, local, or local_worktree')
     p.add_argument('--worktree-path', default='', dest='worktree_path',
                    help='Path for the new git worktree (required for --mode local_worktree)')
-    p.add_argument('--branch', default='', help='Branch name for the new git worktree (required for --mode local_worktree)')
+    p.add_argument('--branch', default='',
+                   help='Branch name. Required alongside --worktree-path for --mode local_worktree, where it '
+                        'names the new git worktree\'s branch; for any other mode it is recorded on the task '
+                        'as an instruction for the executing agent, with no local worktree created')
     p.add_argument('--cwd', default=None, help='Project root (git repo root for worktree creation)')
     p.set_defaults(func=_cmd_start)
 

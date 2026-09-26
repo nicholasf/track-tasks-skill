@@ -42,6 +42,7 @@ def test_task_defaults():
     assert task.execution_mode == ExecutionMode.local
     assert task.worktree_path == ''
     assert task.worktree_branch == ''
+    assert task.branch == ''
 
 
 # ── render structure ──────────────────────────────────────────────────────────
@@ -70,6 +71,16 @@ def test_render_contains_goal_section():
     task = Task.model_validate(_minimal())
     assert '## Goal' in render(task)
     assert 'The thing is done.' in render(task)
+
+
+def test_render_omits_branch_when_empty():
+    task = Task.model_validate(_minimal())
+    assert '**Branch:**' not in render(task)
+
+
+def test_render_includes_branch_when_set():
+    task = Task.model_validate({**_minimal(), 'branch': 'task/add-logging'})
+    assert '**Branch:** `task/add-logging`' in render(task)
 
 
 def test_render_omits_background_when_empty():
