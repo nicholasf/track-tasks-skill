@@ -32,11 +32,17 @@ def start_task(
         _create_worktree(cwd, worktree_path, worktree_branch)
         update['worktree_path'] = worktree_path
         update['worktree_branch'] = worktree_branch
-    elif worktree_branch:
-        # No local worktree is created for any other mode, but the branch is
-        # still recorded — an instruction for the executing agent to act on,
-        # not something this orchestrator creates or enforces itself.
-        update['branch'] = worktree_branch
+    else:
+        # No local worktree is created for any other mode, but a branch
+        # and/or a suggested worktree path are still recorded — an
+        # instruction for the executing agent to act on, not something this
+        # orchestrator creates or enforces itself. Unlike local_worktree,
+        # worktree_path here may not exist yet; it's up to that agent
+        # whether and where to create it.
+        if worktree_branch:
+            update['branch'] = worktree_branch
+        if worktree_path:
+            update['worktree_path'] = worktree_path
 
     task = task.model_copy(update=update)
     task_path.write_text(to_toml(task))

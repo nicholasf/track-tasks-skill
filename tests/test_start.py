@@ -102,6 +102,17 @@ def test_start_leaves_branch_empty_when_not_given(tmp_path):
     assert from_toml(task_file.read_text()).branch == ''
 
 
+def test_start_records_suggested_worktree_path_without_creating_it(tmp_path):
+    task_file = _make_task_file(tmp_path)
+    with patch('start.subprocess.run', side_effect=_fake_git_success) as run:
+        start_task(task_file, ExecutionMode.ask_agent, '../wt-experiment', 'task/experiment', tmp_path)
+    run.assert_not_called()
+    task = from_toml(task_file.read_text())
+    assert task.worktree_path == '../wt-experiment'
+    assert task.branch == 'task/experiment'
+    assert not Path(tmp_path / '../wt-experiment').resolve().exists()
+
+
 # ── local_worktree mode ───────────────────────────────────────────────────────
 
 def test_start_worktree_requires_path_and_branch(tmp_path):

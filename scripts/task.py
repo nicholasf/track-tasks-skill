@@ -114,15 +114,17 @@ class Task(BaseModel):
     hallucination_reporter: str = ''
     hallucination_reason: str = ''
     execution_mode: ExecutionMode = ExecutionMode.local
+    # For local_worktree mode, `start` has already run `git worktree add` at
+    # this path — it exists. For any other mode, this and `branch` below are
+    # just an instruction: where the executing agent should put its worktree,
+    # if it makes one at all. The path may not exist yet in that case, and
+    # nothing here creates or enforces it.
     worktree_path: str = ''
     worktree_branch: str = ''
     # The branch the executing agent should create or check out for this
-    # task's work, regardless of execution_mode — unlike worktree_path/
-    # worktree_branch, which only get set by `start` for local_worktree mode,
-    # this is a plain instruction any mode (including a remote ask_llm or
-    # ask_agent run with no local worktree involved) can read and act on.
-    # Whether that agent isolates the branch in its own worktree is its own
-    # call, not something this field decides.
+    # task's work, regardless of execution_mode. Whether that agent isolates
+    # it in a worktree of its own — at worktree_path above or elsewhere — is
+    # its own call, not something this field decides.
     branch: str = ''
 
 
