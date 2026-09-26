@@ -31,6 +31,7 @@ def test_task_requires_agent():
 def test_task_defaults():
     task = Task.model_validate(_minimal())
     assert task.status == 'pending'
+    assert task.short_code == ''
     assert task.background == ''
     assert task.changes == []
     assert task.files_to_read == []
@@ -58,6 +59,11 @@ def test_render_contains_model_field():
 def test_render_agent_in_backticks():
     task = Task.model_validate(_minimal())
     assert '**Agent:** `pond-qwen-hermes`' in render(task)
+
+
+def test_render_contains_short_code_field():
+    task = Task.model_validate({**_minimal(), 'short_code': '20260927091033'})
+    assert '**Short code:** 20260927091033' in render(task)
 
 
 def test_render_contains_goal_section():
