@@ -105,6 +105,14 @@ A task file is a specification written before execution. The local agent writes 
 
 ---
 
+## Short code
+
+Every task gets a `short_code` at creation — the creation instant in UTC as `YYYYMMDDHHMMSS`, with no separators (e.g. `20260927091033`). It's a short, purely-numeric way to refer to a task in conversation. `created`, the filename timestamp, and `short_code` all come from the same captured instant, so they never disagree.
+
+It's unique to the same second-level resolution the filename already relies on — two tasks created in the same second would collide — nothing stronger is claimed. It's rendered on every task file (`**Short code:**`), but not yet surfaced in `show`'s table output.
+
+---
+
 ## Execution modes
 
 A task's `execution_mode` field records how it's actually being worked on — set via `start`, which also transitions the task to `in_progress`:
