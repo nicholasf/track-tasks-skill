@@ -1,9 +1,12 @@
 import os
+import re
 import pytest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
 from create import _slug, create_task
+from task import from_toml
 
 
 @pytest.fixture(autouse=True)
@@ -150,6 +153,61 @@ def test_create_task_unavailable_label_on_tokenizer_failure(tmp_path):
         cwd=str(tmp_path),
     )
     assert 'unavailable-via-local' in path.read_text()
+
+
+def test_create_task_short_code_is_fourteen_digits(tmp_path):
+    path = create_task(
+        task_fields=_MINIMAL_FIELDS,
+        tokenizer=FakeTokenizer(),
+        tokenizer_source='local',
+        hostname='',
+        backend='llama-server',
+        agent_name='hermes',
+        model='',
+        cwd=str(tmp_path),
+    )
+    task = from_toml(path.read_text())
+    assert re.fullmatch(r'\d{14}', task.short_code)
+
+
+def test_create_task_short_code_matches_filename_timestamp(tmp_path):
+    # created, the filename timestamp, and short_code all come from one
+    # captured instant — the filename's timestamp, with its separators
+    # stripped, must equal short_code exactly.
+    path = create_task(
+        task_fields=_MINIMAL_FIELDS,
+        tokenizer=FakeTokenizer(),
+        tokenizer_source='local',
+        hostname='',
+        backend='llama-server',
+        agent_name='hermes',
+        model='',
+        cwd=str(tmp_path),
+    )
+    task = from_toml(path.read_text())
+    # Filename timestamp is %Y-%m-%dT%H-%M-%S: 5 dash-separated parts before
+    # the slug begins. Strip everything but digits from those parts.
+    parts = path.name.split('-', 5)[:5]
+    digits_from_filename = re.sub(r'\D', '', '-'.join(parts))
+    assert digits_from_filename == task.short_code
+
+
+def test_create_task_short_code_is_utc_not_local(tmp_path):
+    before = datetime.now(timezone.utc)
+    path = create_task(
+        task_fields=_MINIMAL_FIELDS,
+        tokenizer=FakeTokenizer(),
+        tokenizer_source='local',
+        hostname='',
+        backend='llama-server',
+        agent_name='hermes',
+        model='',
+        cwd=str(tmp_path),
+    )
+    after = datetime.now(timezone.utc)
+    task = from_toml(path.read_text())
+    short_code_instant = datetime.strptime(task.short_code, '%Y%m%d%H%M%S').replace(tzinfo=timezone.utc)
+    assert before.replace(microsecond=0) <= short_code_instant <= after.replace(microsecond=0)
 
 
 def test_create_task_invalid_fields_raises(tmp_path):

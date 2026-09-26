@@ -2,7 +2,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from task import Task, render, to_toml
@@ -92,8 +92,14 @@ def create_task(
     model: str,
     cwd: str,
 ) -> Path:
-    created = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    task = Task.model_validate({**task_fields, 'created': created})
+    # One captured instant (UTC) for created, the filename timestamp, and
+    # short_code, so all three agree — created and the filename used to be
+    # two separate datetime.now() calls with a preflight computation in
+    # between them, which could drift by more than a few seconds.
+    now = datetime.now(timezone.utc)
+    created = now.strftime('%Y-%m-%d %H:%M:%S')
+    short_code = now.strftime('%Y%m%d%H%M%S')
+    task = Task.model_validate({**task_fields, 'created': created, 'short_code': short_code})
 
     try:
         preflight_text = _compute_preflight(task, tokenizer, tokenizer_source, hostname, backend, agent_name, model, cwd)
@@ -102,7 +108,7 @@ def create_task(
         print(f'[create] preflight failed: {error}', file=sys.stderr)
         task = task.model_copy(update={'preflight': f'unavailable-via-{tokenizer_source}'})
 
-    timestamp = datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
+    timestamp = now.strftime('%Y-%m-%dT%H-%M-%S')
     slug = _slug(task.title)
     filename = f'{timestamp}-{slug}.toml'
     task_path = Path(cwd) / 'tasks' / 'pending' / filename

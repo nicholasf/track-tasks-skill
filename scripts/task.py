@@ -71,6 +71,11 @@ class Task(BaseModel):
     agent: str
     status: TaskState = TaskState.pending
     created: str = ''
+    # A short, purely-numeric identifier for referring to this task in
+    # conversation — the creation instant (UTC) as YYYYMMDDHHMMSS, with no
+    # separators. Unique to the same second-level resolution the filename
+    # timestamp already relies on; nothing stronger is claimed or needed.
+    short_code: str = ''
     background: str = ''
     changes: list[str] = []
     files_to_read: list[str] = []
@@ -113,6 +118,7 @@ def render(task: Task) -> str:
     parts: list[str] = [f'# {task.title}', '']
     parts += [
         f'**Created:** {task.created}',
+        f'**Short code:** {task.short_code}',
         f'**Model:** {task.model}',
         f'**Agent:** `{task.agent}`',
         f'**Status:** {task.status}',
