@@ -105,6 +105,14 @@ A task file is a specification written before execution. The local agent writes 
 
 ---
 
+## Short code
+
+Every task gets a `short_code` at creation — the creation instant in UTC as `YYYYMMDDHHMMSS`, with no separators (e.g. `20260927091033`). It's a short, purely-numeric way to refer to a task in conversation. `created`, the filename timestamp, and `short_code` all come from the same captured instant, so they never disagree.
+
+It's unique to the same second-level resolution the filename already relies on — two tasks created in the same second would collide — nothing stronger is claimed. It's rendered on every task file (`**Short code:**`), but not yet surfaced in `show`'s table output.
+
+---
+
 ## Execution modes
 
 A task's `execution_mode` field records how it's actually being worked on — set via `start`, which also transitions the task to `in_progress`:
@@ -219,9 +227,9 @@ Two fields surface this at the top of a task file, neither of them rendered:
 
 ## Programme tasks
 
-A programme is an **ordinary task carrying `sub_tasks`** — a list of the paths of the tasks it coordinates. There is no separate programme type: a task with `sub_tasks` populated is a programme, one without is not.
+A programme is an **ordinary task carrying `sub_tasks`** — the tasks it coordinates, each a `[[sub_tasks]]` row with `slug`, `path` and `done`. There is no separate programme type: a task with `sub_tasks` populated is a programme, one without is not.
 
-Whether a sub-task is done is read from the directory its file sits in, so no per-entry flag is kept.
+`done` is the programme's index of itself, so the state of the whole programme reads from one file rather than from each sub-task in turn. The sub-task's own `status` remains the authority.
 
 ```
 create a programme task for the payment module refactor with sub-tasks for schema, API, and tests

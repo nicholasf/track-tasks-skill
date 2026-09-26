@@ -528,9 +528,13 @@ task was finally completed under. Neither is rendered.
 
 ## Programme tasks
 
-A programme is an ordinary task carrying `sub_tasks` — a list of the paths of the tasks
-it coordinates. There is no separate programme type: a task with `sub_tasks` populated
-is a programme, and one without is not.
+A programme is an ordinary task carrying `sub_tasks` — the tasks it coordinates, each a
+`[[sub_tasks]]` row with `slug`, `path` and `done`. There is no separate programme type:
+a task with `sub_tasks` populated is a programme, and one without is not.
+
+`done` is the programme's index of itself, kept beside the path so the state of the whole
+programme reads from one file. The sub-task's own `status` remains the authority; set
+`done = true` on the entry as each one completes.
 
 ## Directory structure
 

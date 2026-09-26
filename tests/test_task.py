@@ -383,10 +383,25 @@ def test_latest_section_and_completed_by_section_are_not_rendered():
 
 def test_sub_tasks_default_empty_and_round_trip():
     assert Task.model_validate(_minimal()).sub_tasks == []
-    t = Task.model_validate(_minimal() | {'sub_tasks': ['a.toml', 'b.toml']})
-    assert from_toml(to_toml(t)).sub_tasks == ['a.toml', 'b.toml']
+    t = Task.model_validate(
+        _minimal()
+        | {
+            'sub_tasks': [
+                {'slug': 'a', 'path': '../pending/a.toml', 'done': False},
+                {'slug': 'b', 'path': '../completed/b.toml', 'done': True},
+            ]
+        }
+    )
+    restored = from_toml(to_toml(t))
+    assert [s.path for s in restored.sub_tasks] == ['../pending/a.toml', '../completed/b.toml']
+    assert [s.slug for s in restored.sub_tasks] == ['a', 'b']
+    # The done flags are the programme's index of itself. Losing them on a
+    # rewrite would make a finished programme read as unstarted.
+    assert [s.done for s in restored.sub_tasks] == [False, True]
 
 
 def test_sub_tasks_are_not_rendered():
-    t = Task.model_validate(_minimal() | {'sub_tasks': ['secret-plan.toml']})
+    t = Task.model_validate(
+        _minimal() | {'sub_tasks': [{'slug': 'secret-plan', 'path': 'secret-plan.toml'}]}
+    )
     assert 'secret-plan.toml' not in render(t)
