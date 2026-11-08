@@ -203,6 +203,21 @@ def _cmd_estimate_tokens(args: argparse.Namespace) -> None:
         print(f'Token estimate written to {args.task}', file=sys.stderr)
 
 
+def _cmd_hook(args: argparse.Namespace) -> None:
+    import hooks
+    hooks.main(args.event, args.format, args.cwd)
+
+
+def _cmd_hooks(args: argparse.Namespace) -> None:
+    import hooks_install
+    hooks_install.main(args.action, args.target, args.scope)
+
+
+def _cmd_notation(args: argparse.Namespace) -> None:
+    import notation
+    notation.main([args.action], Path(args.cwd) if args.cwd else Path.cwd())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog='main.py',
@@ -317,6 +332,29 @@ def main() -> None:
     p.add_argument('--write', action='store_true',
                    help='Write the token estimate back to the task file')
     p.set_defaults(func=_cmd_estimate_tokens)
+
+    # ── hook ──────────────────────────────────────────────────────────────────
+    p = sub.add_parser('hook', help='Agent harness hook: notation legend or expanded forms')
+    p.add_argument('event', choices=['session-start', 'prompt'],
+                   help='session-start prints the legend; prompt (on stdin) prints expanded forms')
+    p.add_argument('--format', default='text', choices=['text', 'claude'],
+                   help='claude reads and writes Claude Code hook JSON (default: text)')
+    p.add_argument('--cwd', default=None, help='Project root (default: from the hook input, else cwd)')
+    p.set_defaults(func=_cmd_hook)
+
+    # ── hooks ─────────────────────────────────────────────────────────────────
+    p = sub.add_parser('hooks', help='Install, remove or report the notation hooks')
+    p.add_argument('action', choices=['install', 'uninstall', 'status'])
+    p.add_argument('--target', default=None, choices=['claude', 'pi'], help='Agent harness')
+    p.add_argument('--scope', default='user', choices=['user', 'project'],
+                   help='User-wide or this project only (default: user)')
+    p.set_defaults(func=_cmd_hooks)
+
+    # ── notation ──────────────────────────────────────────────────────────────
+    p = sub.add_parser('notation', help='Skill notation support (^task:...)')
+    p.add_argument('action', choices=['complete'], help='complete prints handles as JSON for autocomplete')
+    p.add_argument('--cwd', default=None, help='Project root directory')
+    p.set_defaults(func=_cmd_notation)
 
     args = parser.parse_args()
     args.func(args)

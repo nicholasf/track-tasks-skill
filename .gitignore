@@ -21,3 +21,6 @@ build/
 
 # local notes
 notes/
+
+# node (pi extension type-checking)
+node_modules/

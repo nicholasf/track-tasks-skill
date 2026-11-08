@@ -25,6 +25,9 @@ This skill is part of a small ecosystem:
 | `record-failure` | Record a failed attempt as a numbered section; the task stays in `tasks/pending/` |
 | `record-revision` | Record the correction made in response and return the task to `pending` |
 | `estimate-tokens` | Count token cost across the task spec and referenced files, rate complexity, and estimate duration |
+| `hook` | Agent harness hook: the notation legend at session start, expanded forms on each prompt (see [Skill notation](#skill-notation)) |
+| `hooks` | Install, remove or report the notation hooks for Claude Code or pi |
+| `notation complete` | Print this project's task handles as JSON, for pi autocomplete |
 
 ---
 
@@ -110,6 +113,49 @@ A task file is a specification written before execution. The local agent writes 
 Every task gets a `short_code` at creation — the creation instant in UTC as `YYYYMMDDHHMMSS`, with no separators (e.g. `20260927091033`). It's a short, purely-numeric way to refer to a task in conversation. `created`, the filename timestamp, and `short_code` all come from the same captured instant, so they never disagree.
 
 It's unique to the same second-level resolution the filename already relies on — two tasks created in the same second would collide — nothing stronger is claimed. It's rendered on every task file (`**Short code:**`), but not yet surfaced in `show`'s table output.
+
+---
+
+## Skill notation
+
+Type `^task:<handle>` in a prompt to point at a task. The skill resolves the notation into an **expanded form** — the task's title, status, file, branch, goal, done-when list and result — and a prompt hook adds it to the context after your prompt, so the model reads both without looking anything up:
+
+```
+is ^task:20260927091033 ready to complete?
+```
+
+```
+<skill-notation skill="track-tasks">
+  <notation>^task:20260927091033</notation>
+  <expanded>
+    Task 20260927091033: Add notation
+    Status: in_progress. File: tasks/pending/2026-09-27T09-10-33-add-notation.toml
+    ...
+  </expanded>
+</skill-notation>
+```
+
+| Notation | Expands to |
+|---|---|
+| `^task` | Pending and in-progress tasks, one line each |
+| `^task:<short code>` | That task |
+| `^task:<slug>` | That task, by its file name without the timestamp (for tasks older than short codes) |
+| `^task:pending`, `completed`, `deprecated`, `hallucinated` | The tasks in that bucket (newest 20) |
+| `^task:completed:33` | The newest 33 tasks in that bucket (any bucket, any count above 0) |
+
+An unknown handle expands to an `<error>` with suggestions, so the model never guesses. Failure outcomes and logs are not included, for the same reason they are not rendered: only the count of failed attempts.
+
+The notation key is declared in `SKILL.md` front matter (`metadata.notation-key: "^task"`), and the format is shared with the topology skill's `^top`. Tasks are read from the project the harness is running in (`tasks/` under its working directory).
+
+Install the hooks:
+
+```bash
+.venv/bin/python3 scripts/main.py hooks install --target claude   # ~/.claude/settings.json
+.venv/bin/python3 scripts/main.py hooks install --target pi       # symlinks hooks/pi/track-tasks.ts
+.venv/bin/python3 scripts/main.py hooks status
+```
+
+Add `--scope project` to install for the current project only. To type-check the pi extension after changing it: `cd hooks/pi && npm install && npm run typecheck` (also run in CI). In pi, typing `^` offers `^task:` and then short codes, slugs and bucket names; the handle list is loaded at session start. Claude Code has no autocomplete, so notations are typed by hand.
 
 ---
 
