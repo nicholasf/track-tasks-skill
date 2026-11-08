@@ -4,6 +4,8 @@ description: Manage work as structured task files in tasks/pending/ and tasks/co
 argument-hint: "[show [pending|completed|deprecated] | estimate-time <task description or file path>]"
 depends_on:
   - load-topology-skill
+metadata:
+  notation-key: "^task"
 ---
 
 ## NOTE
@@ -11,6 +13,10 @@ depends_on:
 **Always invoke this skill via its slash command — never construct the shell commands manually.**
 
 When the user asks to create a task, delegate work, show tasks, or complete a task via natural language, invoke `/track-tasks` (with the appropriate subcommand if needed). The skill's own logic handles topology checks, preflight estimation, backend selection, and correct invocation. Improvising the shell commands from memory bypasses these safeguards and leads to errors.
+
+## Notation
+
+A `<skill-notation skill="track-tasks">` block after the user's prompt is the expanded form of a `^task:...` notation they typed: the task it refers to, already looked up. Use it directly; read the task file it names only when you need more than it gives.
 
 ## Dependencies
 
